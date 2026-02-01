@@ -144,7 +144,7 @@
             { id: 'vampire', name: 'Blood Lust', desc: 'Heal 2 HP on enemy kill', icon: '🩸', type: 'onkill', effect: 'heal', oneTime: true },
             { id: 'explosion', name: 'Bomb Vest', desc: 'Enemies explode on death', icon: '💣', type: 'onkill', effect: 'explode' },
             { id: 'thorns', name: 'Rose Thorns', desc: 'Reflect 50% damage to attackers', icon: '🌹', type: 'defense', stat: 'thorns', val: 0.5 },
-            { id: 'phoenix', name: 'Phoenix Feather', desc: 'Revive once on death', icon: '🔥🐦', type: 'special', stat: 'revives', val: 1, oneTime: true },
+            { id: 'phoenix', name: 'Phoenix Feather', desc: 'Revive once on death', icon: '🐦‍🔥', type: 'special', stat: 'revives', val: 1, oneTime: true },
             { id: 'timewarp', name: 'Broken Clock', desc: 'Slows nearby enemies by 30%', icon: '⏰', type: 'aura_add', auraId: 'slow', oneTime: true }
         ];
 
@@ -231,7 +231,11 @@
 
                 // Particles
                 this.particles = this.add.particles(0, 0, TYPES.PARTICLE, {
-                    speed: 100, scale: { start: 1, end: 0 }, blendMode: 'ADD', lifespan: 500, on: false
+                    speed: { min: 100, max: 400 }, 
+                    scale: { start: 1, end: 0 }, 
+                    blendMode: 'ADD', 
+                    lifespan: 800, 
+                    emitting: false 
                 });
                 this.particles.setDepth(101);
 
@@ -430,7 +434,7 @@
 
             spawnWave(mins) {
                 // Burst Spawn 10-20 enemies
-                const count = Phaser.Math.Between(10, 20);
+                const count = Phaser.Math.Between(30, 40);
                 const radius = (Math.max(GAME_WIDTH, GAME_HEIGHT) / 2) + 150;
                 
                 for(let i=0; i<count; i++) {
@@ -879,7 +883,7 @@
                         
                         // REVIVE EXPLOSION
                         this.particles.setPosition(player.x, player.y);
-                        this.particles.explode(50); // Burst of 50 particles
+                        this.particles.explode(300); // Increased count for bigger explosion
 
                         // Boom damage
                         this.enemies.children.each(e => {
