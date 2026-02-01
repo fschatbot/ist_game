@@ -180,6 +180,18 @@
 				border-radius: 4px;
 				text-transform: uppercase;
 			}
+			.card-key {
+				position: absolute;
+				bottom: 10px;
+				left: 10px;
+				font-size: 12px;
+				color: #aaa;
+				background: rgba(0, 0, 0, 0.8);
+				padding: 4px 8px;
+				border-radius: 4px;
+				border: 1px solid #555;
+				font-weight: bold;
+			}
 
 			/* Pause Modal */
 			#pause-modal {
@@ -248,7 +260,6 @@
 
 		<!-- Pause Screen -->
 		<div id="pause-modal">
-			<div id="pause-modal-bg"></div>
 			<h1 class="text-6xl text-white font-bold mb-4 tracking-widest">PAUSED</h1>
 			<p class="text-gray-300 mb-8">Press ESC to Resume</p>
 		</div>
@@ -295,6 +306,7 @@
 				{ id: "luck", name: "Four Leaf", desc: "+20% Luck (better drops)", icon: "🍀", type: "stat", stat: "luck", val: 0.2 },
 				{ id: "telescope", name: "Stargazer", desc: "Projectiles gain +50% range", icon: "🔭", type: "stat", stat: "rangeMult", val: 0.5 },
 				{ id: "xpboost", name: "Study Book", desc: "+25% XP gain", icon: "📖", type: "economy", stat: "xpMult", val: 0.25 },
+				{ id: "choices", name: "Diploma", desc: "Adds +1 Option to future level ups", icon: "📜", type: "special", stat: "upgradeChoices", val: 1 },
 
 				// Weapons (One-Time)
 				{ id: "multi", name: "Twin Wand", desc: "Add +1 Projectile to attacks", icon: "✨", type: "weapon_mod", stat: "projectileCount", val: 1 },
@@ -475,6 +487,7 @@
 						luck: 1,
 						thorns: 0,
 						revives: 0,
+						upgradeChoices: 3, // Default choices
 						// Status Effects on hit
 						poison: false,
 						burn: false,
@@ -507,6 +520,8 @@
 						orbit: 0,
 					};
 
+					this.currentOptions = []; // Stores current upgrade cards
+
 					this.setupInputs();
 					this.setupCollisions();
 					this.setupUIReferences();
@@ -529,9 +544,23 @@
 					this.input.keyboard.on("keydown-ESC", () => {
 						this.togglePause();
 					});
+
+					// Upgrade Selection Keys (1-9)
+					this.input.keyboard.on("keydown", (event) => {
+						// Only active if game is paused and upgrade modal is showing
+						if (this.isPaused && document.getElementById("upgrade-modal").style.display === "flex") {
+							const key = parseInt(event.key);
+							if (!isNaN(key) && key > 0 && key <= this.currentOptions.length) {
+								this.applyUpgrade(this.currentOptions[key - 1]);
+							}
+						}
+					});
 				}
 
 				togglePause() {
+					// Don't toggle normal pause if upgrade menu is open
+					if (document.getElementById("upgrade-modal").style.display === "flex") return;
+
 					this.isPaused = !this.isPaused;
 					const modal = document.getElementById("pause-modal");
 					if (this.isPaused) {
@@ -1200,23 +1229,26 @@
 					this.isPaused = true;
 					this.physics.pause();
 
-					// Select 3 random upgrades from full list
-					// Filter out upgrades that are one-time and already taken (though we handle removal in apply)
-					// Filter out upgrades that are marked 'taken' if we add that property dynamically
+					// Select random upgrades based on upgradeChoices stat
 					let choices = [];
 					let pool = [...UPGRADES]; // Copy
 
-					for (let i = 0; i < 3; i++) {
+					// Use the new stat
+					const numOptions = this.stats.upgradeChoices || 3;
+
+					for (let i = 0; i < numOptions; i++) {
 						if (pool.length === 0) break;
 						let idx = Math.floor(Math.random() * pool.length);
 						choices.push(pool[idx]);
 						pool.splice(idx, 1);
 					}
 
+					this.currentOptions = choices;
+
 					const container = document.getElementById("cards-container");
 					container.innerHTML = "";
 
-					choices.forEach((opt) => {
+					choices.forEach((opt, index) => {
 						const el = document.createElement("div");
 						el.className = "card";
 						// Determine type label
@@ -1227,6 +1259,7 @@
                         <div class="card-icon">${opt.icon}</div>
                         <div class="card-title">${opt.name}</div>
                         <div class="card-desc">${opt.desc}</div>
+                        <div class="card-key">[${index + 1}]</div>
                     `;
 						el.onclick = () => this.applyUpgrade(opt);
 						container.appendChild(el);
