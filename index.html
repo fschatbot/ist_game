@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Void Survivor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: #111; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #game-container { width: 100vw; height: 100vh; }
+        
+        /* UI Overlays */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .pointer-events-auto { pointer-events: auto; }
+        
+        /* HUD */
+        #xp-bar-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 60%; height: 20px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 10px; overflow: hidden; }
+        #xp-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); transition: width 0.2s; }
+        #level-indicator { position: absolute; top: 20px; right: 20px; color: white; font-weight: bold; font-size: 24px; text-shadow: 2px 2px 0 #000; }
+        #hp-bar-container { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 200px; height: 15px; background: rgba(0,0,0,0.8); border: 1px solid #555; border-radius: 4px; }
+        #hp-bar-fill { height: 100%; width: 100%; background: #ff4444; transition: width 0.1s; }
+        #stats-panel { position: absolute; top: 20px; left: 20px; color: rgba(255,255,255,0.7); font-size: 14px; }
+        
+        /* Level Up Modal */
+        #upgrade-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; flex-direction: column; backdrop-filter: blur(5px); pointer-events: auto; }
+        .card { background: #2a2a2a; border: 2px solid #444; width: 220px; height: 300px; margin: 0 10px; border-radius: 8px; padding: 20px; color: white; cursor: pointer; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .card:hover { transform: translateY(-10px); border-color: #ffd700; background: #333; }
+        .card-icon { width: 60px; height: 60px; margin-bottom: 20px; background: #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; }
+        .card-title { font-weight: bold; font-size: 18px; margin-bottom: 10px; color: #ffd700; }
+        .card-desc { font-size: 14px; color: #ccc; line-height: 1.4; }
+
+        /* Game Over */
+        #game-over-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(50,0,0,0.9); z-index: 200; justify-content: center; align-items: center; flex-direction: column; pointer-events: auto; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container"></div>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        <!-- Stats -->
+        <div id="stats-panel">
+            <div id="timer-display">Time: 00:00</div>
+            <div id="kill-display">Kills: 0</div>
+        </div>
+
+        <!-- XP Bar -->
+        <div id="xp-bar-container">
+            <div id="xp-bar-fill"></div>
+        </div>
+        <div id="level-indicator">LVL 1</div>
+
+        <!-- Player HP -->
+        <div id="hp-bar-container">
+            <div id="hp-bar-fill"></div>
+        </div>
+    </div>
+
+    <!-- Level Up Screen -->
+    <div id="upgrade-modal">
+        <h1 class="text-4xl text-white font-bold mb-8 tracking-wider">LEVEL UP!</h1>
+        <div class="flex flex-row" id="cards-container">
+            <!-- Cards injected by JS -->
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-modal">
+        <h1 class="text-6xl text-red-500 font-bold mb-4">YOU DIED</h1>
+        <p id="final-stats" class="text-xl text-white mb-8">Survived: 00:00</p>
+        <button onclick="location.reload()" class="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded shadow-lg transition">TRY AGAIN</button>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION & STATE ---
+        const GAME_WIDTH = window.innerWidth;
+        const GAME_HEIGHT = window.innerHeight;
+
+        const TYPES = {
+            PLAYER: 'player',
+            ENEMY_BAT: 'bat',
+            ENEMY_SKEL: 'skeleton',
+            BULLET: 'bullet',
+            GEM: 'gem'
+        };
+
+        const UPGRADES = [
+            { id: 'might', name: 'Spinach', desc: 'Increases Damage by 20%', icon: '💪', type: 'stat', stat: 'damageMult', val: 0.2 },
+            { id: 'haste', name: 'Coffee', desc: 'Increases Fire Rate by 15%', icon: '☕', type: 'stat', stat: 'fireRateMult', val: 0.15 },
+            { id: 'speed', name: 'Sneakers', desc: 'Increases Move Speed by 15%', icon: '👟', type: 'stat', stat: 'speedMult', val: 0.15 },
+            { id: 'magnet', name: 'Magnet', desc: 'Increases Pickup Range by 30%', icon: '🧲', type: 'stat', stat: 'pickupMult', val: 0.3 },
+            { id: 'vitality', name: 'Heart', desc: 'Heal 50% HP & +20% Max HP', icon: '❤️', type: 'heal' },
+            { id: 'multi', name: 'Twin Wand', desc: 'Add +1 Projectile to attacks', icon: '✨', type: 'weapon', stat: 'projectileCount', val: 1 }
+        ];
+
+        // --- 2. BOOT SCENE (Asset Generation) ---
+        class BootScene extends Phaser.Scene {
+            constructor() { super('BootScene'); }
+
+            create() {
+                // Generate Player (White Circle)
+                let g = this.make.graphics({ x: 0, y: 0, add: false });
+                g.fillStyle(0xFFFFFF);
+                g.lineStyle(2, 0x000000);
+                g.fillCircle(16, 16, 14);
+                g.strokeCircle(16, 16, 14);
+                g.generateTexture(TYPES.PLAYER, 32, 32);
+
+                // Generate Enemy - Bat (Red Triangle-ish)
+                g.clear();
+                g.fillStyle(0xFF4444);
+                g.fillTriangle(0, 0, 32, 0, 16, 32);
+                g.generateTexture(TYPES.ENEMY_BAT, 32, 32);
+
+                // Generate Enemy - Skeleton (Gray Square)
+                g.clear();
+                g.fillStyle(0xCCCCCC);
+                g.lineStyle(2, 0x555555);
+                g.fillRect(0, 0, 32, 32);
+                g.strokeRect(0, 0, 32, 32);
+                g.generateTexture(TYPES.ENEMY_SKEL, 32, 32);
+
+                // Generate Bullet (Yellow dot)
+                g.clear();
+                g.fillStyle(0xFFFF00);
+                g.fillCircle(6, 6, 6);
+                g.generateTexture(TYPES.BULLET, 12, 12);
+
+                // Generate Gem (Blue Diamond)
+                g.clear();
+                g.fillStyle(0x4FACFE);
+                // g.fillDiamond(8, 8, 16, 16); // Phaser 3 Graphics doesn't have fillDiamond
+                g.fillPoints([
+                    { x: 8, y: 0 },
+                    { x: 16, y: 8 },
+                    { x: 8, y: 16 },
+                    { x: 0, y: 8 }
+                ], true, true);
+                g.generateTexture(TYPES.GEM, 16, 16);
+
+                // Generate Grid Tile for Background
+                g.clear();
+                g.lineStyle(2, 0x333333, 0.5);
+                g.strokeRect(0, 0, 128, 128); // Grid cells
+                g.generateTexture('grid', 128, 128);
+
+                this.scene.start('GameScene');
+            }
+        }
+
+        // --- 3. MAIN GAME SCENE ---
+        class GameScene extends Phaser.Scene {
+            constructor() { super('GameScene'); }
+
+            create() {
+                // -- World Setup --
+                this.physics.world.setBounds(-10000, -10000, 20000, 20000); // "Infinite" bounds
+                
+                // Infinite Background
+                this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'grid')
+                    .setOrigin(0, 0)
+                    .setScrollFactor(0);
+
+                // -- Groups (Object Pooling) --
+                this.bullets = this.physics.add.group({
+                    defaultKey: TYPES.BULLET,
+                    maxSize: 100
+                });
+
+                this.enemies = this.physics.add.group({
+                    runChildUpdate: true 
+                });
+
+                this.gems = this.physics.add.group();
+
+                // -- Player Setup --
+                this.player = this.physics.add.sprite(0, 0, TYPES.PLAYER);
+                this.player.setCollideWorldBounds(true); // Actually binds to massive world, effectively infinite
+                this.player.setDepth(10);
+                
+                // Player Stats
+                this.playerStats = {
+                    speed: 200,
+                    maxHp: 100,
+                    hp: 100,
+                    damageMult: 1,
+                    fireRateMult: 1, // Higher is faster? No, this is cooldown reduction. Let's make it attack speed.
+                    pickupRadius: 100,
+                    projectileCount: 1,
+                    level: 1,
+                    xp: 0,
+                    xpToNext: 10
+                };
+                
+                // Camera
+                this.cameras.main.startFollow(this.player);
+                this.cameras.main.setZoom(1);
+
+                // Input
+                this.cursors = this.input.keyboard.createCursorKeys();
+                this.wasd = this.input.keyboard.addKeys('W,A,S,D');
+
+                // Logic Timers
+                this.lastShotTime = 0;
+                this.fireDelay = 800; // ms
+                
+                this.spawnTimer = 0;
+                this.spawnDelay = 1000; // ms, decreases over time
+                
+                this.gameTime = 0;
+                this.kills = 0;
+
+                // -- Collisions --
+                // Bullet hits Enemy
+                this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
+                
+                // Enemy hits Player
+                this.physics.add.overlap(this.player, this.enemies, this.hitPlayer, null, this);
+                
+                // Player collects Gem
+                this.physics.add.overlap(this.player, this.gems, this.collectGem, null, this);
+
+                // UI References
+                this.xpBarFill = document.getElementById('xp-bar-fill');
+                this.hpBarFill = document.getElementById('hp-bar-fill');
+                this.lvlText = document.getElementById('level-indicator');
+                this.timerText = document.getElementById('timer-display');
+                this.killText = document.getElementById('kill-display');
+
+                // Initial UI update
+                this.updateUI();
+            }
+
+            update(time, delta) {
+                if (this.isPaused) return;
+
+                this.gameTime += delta;
+                
+                // 1. Player Movement
+                this.handleMovement();
+
+                // 2. Background Parallax
+                this.bg.tilePositionX = this.cameras.main.scrollX;
+                this.bg.tilePositionY = this.cameras.main.scrollY;
+
+                // 3. Spawning
+                this.spawnTimer -= delta;
+                if (this.spawnTimer <= 0) {
+                    this.spawnEnemy();
+                    // Difficulty scaling: spawn faster as time goes on, capped at 100ms
+                    let difficultyMod = Math.min(0.8, this.gameTime / 300000); // Max difficulty at 5 mins
+                    this.spawnDelay = Math.max(100, 1000 - (1000 * difficultyMod)); 
+                    this.spawnTimer = this.spawnDelay;
+                }
+
+                // 4. Weapons (Auto Fire)
+                if (time > this.lastShotTime + (this.fireDelay / (1 + (this.playerStats.fireRateMult - 1)))) {
+                    this.fireWeapon();
+                    this.lastShotTime = time;
+                }
+
+                // 5. Enemy Logic (Chase)
+                this.enemies.children.each(enemy => {
+                    if (enemy.active) {
+                        this.physics.moveToObject(enemy, this.player, enemy.speed);
+                        
+                        // Despawn if too far
+                        const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+                        if (dist > 1500) {
+                            enemy.destroy();
+                        }
+                    }
+                });
+
+                // 6. Loot Magnet
+                this.gems.children.each(gem => {
+                    if (gem.active) {
+                        const dist = Phaser.Math.Distance.Between(gem.x, gem.y, this.player.x, this.player.y);
+                        if (dist < this.playerStats.pickupRadius * (this.playerStats.pickupMult || 1)) {
+                            this.physics.moveToObject(gem, this.player, 400); // Fly to player
+                        } else {
+                            gem.setVelocity(0,0);
+                        }
+                    }
+                });
+                
+                // 7. Timer Update
+                let seconds = Math.floor(this.gameTime / 1000);
+                let minutes = Math.floor(seconds / 60);
+                seconds = seconds % 60;
+                this.timerText.innerText = `Time: ${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+            }
+
+            handleMovement() {
+                const speed = this.playerStats.speed * (this.playerStats.speedMult || 1);
+                this.player.setVelocity(0);
+
+                // Horizontal
+                if (this.cursors.left.isDown || this.wasd.A.isDown) {
+                    this.player.setVelocityX(-speed);
+                } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+                    this.player.setVelocityX(speed);
+                }
+
+                // Vertical
+                if (this.cursors.up.isDown || this.wasd.W.isDown) {
+                    this.player.setVelocityY(-speed);
+                } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+                    this.player.setVelocityY(speed);
+                }
+                
+                // Normalize for diagonal
+                if (this.player.body.velocity.x !== 0 && this.player.body.velocity.y !== 0) {
+                    this.player.body.velocity.normalize().scale(speed);
+                }
+            }
+
+            spawnEnemy() {
+                // Ring System: Spawn outside camera
+                const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+                const radius = (Math.max(GAME_WIDTH, GAME_HEIGHT) / 2) + 100;
+                const spawnX = this.player.x + Math.cos(angle) * radius;
+                const spawnY = this.player.y + Math.sin(angle) * radius;
+
+                // Decide type based on time
+                let type = TYPES.ENEMY_BAT;
+                let hp = 10;
+                let speed = 80;
+
+                if (this.gameTime > 60000 && Math.random() > 0.5) {
+                    type = TYPES.ENEMY_SKEL;
+                    hp = 25;
+                    speed = 60;
+                }
+
+                let enemy = this.enemies.create(spawnX, spawnY, type);
+                enemy.hp = hp + (this.gameTime / 10000); // Health scaling
+                enemy.speed = speed;
+                enemy.setTint(0xffffff);
+            }
+
+            fireWeapon() {
+                // Find nearest enemy
+                let nearest = null;
+                let minDist = 600; // Range
+
+                this.enemies.children.each(enemy => {
+                    if (enemy.active) {
+                        let dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearest = enemy;
+                        }
+                    }
+                });
+
+                if (nearest) {
+                    const shots = this.playerStats.projectileCount;
+                    // Fan out shots if multiple
+                    for(let i=0; i<shots; i++) {
+                        let bullet = this.bullets.get(this.player.x, this.player.y);
+                        if (bullet) {
+                            bullet.setActive(true);
+                            bullet.setVisible(true);
+                            bullet.body.enable = true; // Re-enable physics for pooled object
+                            
+                            // Calculate angle with slight spread
+                            let angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, nearest.x, nearest.y);
+                            if (shots > 1) {
+                                angle += (i - (shots-1)/2) * 0.2; // 0.2 rad spread
+                            }
+
+                            this.physics.velocityFromRotation(angle, 400, bullet.body.velocity);
+                            
+                            // Auto-destroy bullet after 2 seconds
+                            this.time.delayedCall(1500, () => {
+                                if (bullet.active) {
+                                    bullet.setActive(false);
+                                    bullet.setVisible(false);
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            hitEnemy(bullet, enemy) {
+                bullet.setActive(false);
+                bullet.setVisible(false);
+                bullet.body.enable = false; // Disable physics for pooled object
+                bullet.setPosition(-100, -100);
+
+                const dmg = 10 * this.playerStats.damageMult;
+                enemy.hp -= dmg;
+                enemy.setTint(0xff0000);
+                this.time.delayedCall(100, () => { if(enemy.active) enemy.clearTint(); });
+
+                if (enemy.hp <= 0) {
+                    // Drop Gem
+                    let gem = this.gems.create(enemy.x, enemy.y, TYPES.GEM);
+                    gem.xpValue = 10; 
+                    
+                    enemy.destroy();
+                    this.kills++;
+                    this.killText.innerText = `Kills: ${this.kills}`;
+                }
+            }
+
+            hitPlayer(player, enemy) {
+                // Invulnerability frame could be added here
+                if (player.alpha < 1) return;
+
+                const dmg = 5;
+                this.playerStats.hp -= dmg;
+                this.updateUI();
+
+                // Flash player
+                player.alpha = 0.5;
+                this.time.delayedCall(500, () => player.alpha = 1);
+
+                // Knockback enemies slightly
+                const angle = Phaser.Math.Angle.Between(player.x, player.y, enemy.x, enemy.y);
+                const knockback = 100;
+                enemy.x += Math.cos(angle) * knockback;
+                enemy.y += Math.sin(angle) * knockback;
+
+                if (this.playerStats.hp <= 0) {
+                    this.gameOver();
+                }
+            }
+
+            collectGem(player, gem) {
+                gem.destroy();
+                this.playerStats.xp += gem.xpValue;
+                
+                if (this.playerStats.xp >= this.playerStats.xpToNext) {
+                    this.playerStats.xp -= this.playerStats.xpToNext;
+                    this.playerStats.xpToNext = Math.floor(this.playerStats.xpToNext * 1.5);
+                    this.playerStats.level++;
+                    this.triggerLevelUp();
+                }
+                this.updateUI();
+            }
+
+            updateUI() {
+                // XP Bar
+                const xpPct = (this.playerStats.xp / this.playerStats.xpToNext) * 100;
+                this.xpBarFill.style.width = `${xpPct}%`;
+                this.lvlText.innerText = `LVL ${this.playerStats.level}`;
+                
+                // HP Bar
+                const hpPct = Math.max(0, (this.playerStats.hp / this.playerStats.maxHp) * 100);
+                this.hpBarFill.style.width = `${hpPct}%`;
+            }
+
+            triggerLevelUp() {
+                this.isPaused = true;
+                this.physics.pause();
+                
+                // Pick 3 random upgrades
+                const options = [];
+                const pool = [...UPGRADES];
+                for(let i=0; i<3; i++) {
+                    const idx = Math.floor(Math.random() * pool.length);
+                    options.push(pool[idx]);
+                    // Don't remove from pool if we want duplicates allowed, or remove if unique
+                }
+
+                const modal = document.getElementById('upgrade-modal');
+                const container = document.getElementById('cards-container');
+                container.innerHTML = ''; // Clear old
+
+                options.forEach(opt => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-icon">${opt.icon}</div>
+                        <div class="card-title">${opt.name}</div>
+                        <div class="card-desc">${opt.desc}</div>
+                    `;
+                    card.onclick = () => this.selectUpgrade(opt);
+                    container.appendChild(card);
+                });
+
+                modal.style.display = 'flex';
+            }
+
+            selectUpgrade(opt) {
+                if (opt.type === 'stat') {
+                    if (!this.playerStats[opt.stat]) this.playerStats[opt.stat] = 1;
+                    this.playerStats[opt.stat] += opt.val;
+                } else if (opt.type === 'weapon') {
+                    this.playerStats[opt.stat] += opt.val;
+                } else if (opt.type === 'heal') {
+                    this.playerStats.maxHp *= 1.2;
+                    this.playerStats.hp = this.playerStats.maxHp;
+                }
+
+                this.updateUI();
+
+                // Resume
+                document.getElementById('upgrade-modal').style.display = 'none';
+                this.isPaused = false;
+                this.physics.resume();
+            }
+
+            gameOver() {
+                this.physics.pause();
+                this.isPaused = true;
+                document.getElementById('game-over-modal').style.display = 'flex';
+                document.getElementById('final-stats').innerText = `Survived: ${this.timerText.innerText.replace('Time: ', '')} | Kills: ${this.kills}`;
+            }
+        }
+
+        // --- 4. INIT ---
+        const config = {
+            type: Phaser.AUTO,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            parent: 'game-container',
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    debug: false,
+                    gravity: { y: 0 }
+                }
+            },
+            scene: [BootScene, GameScene]
+        };
+
+        const game = new Phaser.Game(config);
+
+        window.addEventListener('resize', () => {
+            game.scale.resize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
