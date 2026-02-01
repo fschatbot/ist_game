@@ -22,6 +22,9 @@
         #hp-bar-fill { height: 100%; width: 100%; background: #ff4444; transition: width 0.1s; }
         #stats-panel { position: absolute; top: 20px; left: 20px; color: rgba(255,255,255,0.7); font-size: 14px; text-shadow: 1px 1px 0 #000; }
         
+        /* Detailed Stats UI */
+        #stats-details { position: absolute; bottom: 20px; left: 20px; color: rgba(255,255,255,0.6); font-size: 12px; line-height: 1.6; font-family: monospace; }
+
         /* Level Up Modal */
         #upgrade-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; flex-direction: column; backdrop-filter: blur(5px); pointer-events: auto; }
         #cards-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 900px; }
@@ -53,6 +56,11 @@
             <div id="timer-display">Time: 00:00</div>
             <div id="kill-display">Kills: 0</div>
             <div style="margin-top:5px; font-size:12px; color:#aaa;">Press ESC to Pause</div>
+        </div>
+
+        <!-- Detailed Stats -->
+        <div id="stats-details">
+            <!-- Populated by JS -->
         </div>
 
         <div id="xp-bar-container">
@@ -320,6 +328,7 @@
                 this.lvlText = document.getElementById('level-indicator');
                 this.timerText = document.getElementById('timer-display');
                 this.killText = document.getElementById('kill-display');
+                this.statsDetails = document.getElementById('stats-details');
                 this.updateUI();
             }
 
@@ -433,7 +442,7 @@
             }
 
             spawnWave(mins) {
-                // Burst Spawn 10-20 enemies
+                // Burst Spawn 30-40 enemies
                 const count = Phaser.Math.Between(30, 40);
                 const radius = (Math.max(GAME_WIDTH, GAME_HEIGHT) / 2) + 150;
                 
@@ -574,9 +583,11 @@
                          laserWep.timer = laserWep.cooldown; // Cooldown kicks in after kill
                     }
                 } else {
-                    // Target lost/dead
+                    // Target lost/dead/despawned
                     this.laserState.target = null;
                     this.laserGraphics.clear();
+                    // Apply cooldown if target is lost to prevent instant snap to next
+                    if (laserWep.timer < 0) laserWep.timer = laserWep.cooldown;
                 }
             }
 
@@ -717,7 +728,18 @@
             fireFist() {
                 // AoE around player
                 let g = this.add.circle(this.player.x, this.player.y, 60, 0xFFFFFF, 0.5);
-                this.tweens.add({ targets: g, scale: 1.5, alpha: 0, duration: 150, onComplete: () => g.destroy() });
+                this.tweens.add({ 
+                    targets: g, 
+                    scale: 1.5, 
+                    alpha: 0, 
+                    duration: 150, 
+                    onUpdate: () => {
+                        if (this.player.active) {
+                            g.setPosition(this.player.x, this.player.y);
+                        }
+                    },
+                    onComplete: () => g.destroy() 
+                });
                 
                 this.enemies.children.each(e => {
                     if (e.active && Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y) < 80) {
@@ -931,6 +953,16 @@
                 
                 const hpPct = Math.max(0, (this.stats.hp / this.stats.maxHp) * 100);
                 this.hpBarFill.style.width = `${hpPct}%`;
+
+                // Update Stats Panel
+                this.statsDetails.innerHTML = `
+                    Might: ${(this.stats.damageMult * 100).toFixed(0)}%<br>
+                    Speed: ${(this.stats.speedMult * 100).toFixed(0)}%<br>
+                    Haste: ${(this.stats.fireRateMult * 100).toFixed(0)}%<br>
+                    Area: ${(this.stats.areaMult * 100).toFixed(0)}%<br>
+                    Crit: ${(this.stats.critChance * 100).toFixed(0)}%<br>
+                    Luck: ${(this.stats.luck * 100).toFixed(0)}%
+                `;
             }
 
             // --- UPGRADE SYSTEM ---
@@ -1003,7 +1035,7 @@
                         if (!hasWep) {
                             let cd = 1000;
                             if (opt.weaponId === 'shotgun') cd = 1200;
-                            if (opt.weaponId === 'laser') cd = 500; // Faster tick check for laser
+                            if (opt.weaponId === 'laser') cd = 2000; // Explicit 2000ms cooldown for scanning
                             if (opt.weaponId === 'fist') cd = 1500;
                             this.weapons.push({ id: opt.weaponId, cooldown: cd, timer: 0 });
                         }
