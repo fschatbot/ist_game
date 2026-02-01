@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Void Survivor</title>
+    <title>Void Survivor - Expanded</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; background: #111; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; background: #111; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
         #game-container { width: 100vw; height: 100vh; }
         
         /* UI Overlays */
@@ -20,18 +20,23 @@
         #level-indicator { position: absolute; top: 20px; right: 20px; color: white; font-weight: bold; font-size: 24px; text-shadow: 2px 2px 0 #000; }
         #hp-bar-container { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 200px; height: 15px; background: rgba(0,0,0,0.8); border: 1px solid #555; border-radius: 4px; }
         #hp-bar-fill { height: 100%; width: 100%; background: #ff4444; transition: width 0.1s; }
-        #stats-panel { position: absolute; top: 20px; left: 20px; color: rgba(255,255,255,0.7); font-size: 14px; }
+        #stats-panel { position: absolute; top: 20px; left: 20px; color: rgba(255,255,255,0.7); font-size: 14px; text-shadow: 1px 1px 0 #000; }
         
         /* Level Up Modal */
         #upgrade-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; flex-direction: column; backdrop-filter: blur(5px); pointer-events: auto; }
-        .card { background: #2a2a2a; border: 2px solid #444; width: 220px; height: 300px; margin: 0 10px; border-radius: 8px; padding: 20px; color: white; cursor: pointer; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        #cards-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 900px; }
+        .card { background: #2a2a2a; border: 2px solid #444; width: 200px; height: 280px; border-radius: 8px; padding: 15px; color: white; cursor: pointer; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; overflow: hidden; }
         .card:hover { transform: translateY(-10px); border-color: #ffd700; background: #333; }
-        .card-icon { width: 60px; height: 60px; margin-bottom: 20px; background: #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; }
-        .card-title { font-weight: bold; font-size: 18px; margin-bottom: 10px; color: #ffd700; }
-        .card-desc { font-size: 14px; color: #ccc; line-height: 1.4; }
+        .card-icon { width: 50px; height: 50px; margin-bottom: 15px; background: #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+        .card-title { font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #ffd700; min-height: 40px; display: flex; align-items: center; }
+        .card-desc { font-size: 12px; color: #ccc; line-height: 1.4; }
+        .card-type { position: absolute; top: 5px; right: 5px; font-size: 10px; background: #555; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
 
         /* Game Over */
         #game-over-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(50,0,0,0.9); z-index: 200; justify-content: center; align-items: center; flex-direction: column; pointer-events: auto; }
+        
+        /* Floating Text */
+        .damage-text { font-weight: bold; pointer-events: none; text-shadow: 1px 1px 0 #000; }
     </style>
 </head>
 <body>
@@ -40,19 +45,17 @@
 
     <!-- UI Overlay -->
     <div id="ui-layer">
-        <!-- Stats -->
         <div id="stats-panel">
             <div id="timer-display">Time: 00:00</div>
             <div id="kill-display">Kills: 0</div>
+            <div id="gold-display">Gold: 0</div>
         </div>
 
-        <!-- XP Bar -->
         <div id="xp-bar-container">
             <div id="xp-bar-fill"></div>
         </div>
         <div id="level-indicator">LVL 1</div>
 
-        <!-- Player HP -->
         <div id="hp-bar-container">
             <div id="hp-bar-fill"></div>
         </div>
@@ -60,10 +63,8 @@
 
     <!-- Level Up Screen -->
     <div id="upgrade-modal">
-        <h1 class="text-4xl text-white font-bold mb-8 tracking-wider">LEVEL UP!</h1>
-        <div class="flex flex-row" id="cards-container">
-            <!-- Cards injected by JS -->
-        </div>
+        <h1 class="text-4xl text-white font-bold mb-6 tracking-wider" style="text-shadow: 0 0 10px #ffd700;">CHOOSE UPGRADE</h1>
+        <div id="cards-container"></div>
     </div>
 
     <!-- Game Over Screen -->
@@ -74,7 +75,7 @@
     </div>
 
     <script>
-        // --- 1. CONFIGURATION & STATE ---
+        // --- 1. CONFIGURATION & DATABASE ---
         const GAME_WIDTH = window.innerWidth;
         const GAME_HEIGHT = window.innerHeight;
 
@@ -83,67 +84,105 @@
             ENEMY_BAT: 'bat',
             ENEMY_SKEL: 'skeleton',
             BULLET: 'bullet',
-            GEM: 'gem'
+            GEM: 'gem',
+            ORB: 'orb',
+            LASER: 'laser',
+            HELPER: 'helper',
+            AOE: 'aoe'
         };
 
         const UPGRADES = [
+            // Stats
             { id: 'might', name: 'Spinach', desc: 'Increases Damage by 20%', icon: '💪', type: 'stat', stat: 'damageMult', val: 0.2 },
             { id: 'haste', name: 'Coffee', desc: 'Increases Fire Rate by 15%', icon: '☕', type: 'stat', stat: 'fireRateMult', val: 0.15 },
             { id: 'speed', name: 'Sneakers', desc: 'Increases Move Speed by 15%', icon: '👟', type: 'stat', stat: 'speedMult', val: 0.15 },
             { id: 'magnet', name: 'Magnet', desc: 'Increases Pickup Range by 30%', icon: '🧲', type: 'stat', stat: 'pickupMult', val: 0.3 },
             { id: 'vitality', name: 'Heart', desc: 'Heal 50% HP & +20% Max HP', icon: '❤️', type: 'heal' },
-            { id: 'multi', name: 'Twin Wand', desc: 'Add +1 Projectile to attacks', icon: '✨', type: 'weapon', stat: 'projectileCount', val: 1 }
+            { id: 'area', name: 'Candelabra', desc: 'Increases Area of Effect by 25%', icon: '🕯️', type: 'stat', stat: 'areaMult', val: 0.25 },
+            { id: 'duration', name: 'Hourglass', desc: 'Increases Effect Duration by 30%', icon: '⏳', type: 'stat', stat: 'durationMult', val: 0.3 },
+            { id: 'pierce', name: 'Spearhead', desc: 'Projectiles pierce +1 extra enemy', icon: '🗡️', type: 'stat', stat: 'pierce', val: 1 },
+            { id: 'crit', name: 'Lucky Coin', desc: '+15% Critical Hit Chance', icon: '🪙', type: 'stat', stat: 'critChance', val: 0.15 },
+            { id: 'critdmg', name: 'Diamond Edge', desc: '+50% Critical Damage', icon: '💎', type: 'stat', stat: 'critDamageMult', val: 0.5 },
+            { id: 'armor', name: 'Turtle Shell', desc: 'Reduce incoming damage by 15%', icon: '🐢', type: 'defense', stat: 'damageReduction', val: 0.15 },
+            { id: 'regen', name: 'Green Tea', desc: 'Regenerate 1 HP per second', icon: '🍵', type: 'stat', stat: 'hpRegen', val: 1 },
+            { id: 'luck', name: 'Four Leaf', desc: '+20% Luck (better drops)', icon: '🍀', type: 'stat', stat: 'luck', val: 0.2 },
+            { id: 'telescope', name: 'Stargazer', desc: 'Projectiles gain +50% range', icon: '🔭', type: 'stat', stat: 'rangeMult', val: 0.5 },
+            { id: 'xpboost', name: 'Study Book', desc: '+25% XP gain', icon: '📖', type: 'economy', stat: 'xpMult', val: 0.25 },
+
+            // Weapons
+            { id: 'multi', name: 'Twin Wand', desc: 'Add +1 Projectile to attacks', icon: '✨', type: 'weapon_mod', stat: 'projectileCount', val: 1 },
+            { id: 'triple', name: 'Trident', desc: 'Add +2 Projectiles to attacks', icon: '🔱', type: 'weapon_mod', stat: 'projectileCount', val: 2 },
+            { id: 'shotgun', name: 'Scattergun', desc: 'Fires a cone of 5 weak bullets', icon: '🔫', type: 'weapon_add', weaponId: 'shotgun' },
+            { id: 'laser', name: 'Red Pointer', desc: 'Adds a continuous piercing laser beam', icon: '🔴', type: 'weapon_add', weaponId: 'laser' },
+            { id: 'fist', name: 'Iron Knuckle', desc: 'Melee punch nearby enemies', icon: '👊', type: 'weapon_add', weaponId: 'fist' },
+            { id: 'orbit', name: 'Planets', desc: 'Spawn 2 orbiting fireballs', icon: '🪐', type: 'aura_add', auraId: 'orbit', val: 2 },
+            { id: 'garlic', name: 'Garlic Aura', desc: 'Damages all enemies in radius', icon: '🧄', type: 'aura_add', auraId: 'garlic' },
+
+            // Projectile Mods
+            { id: 'homing', name: 'Love Letter', desc: 'Projectiles gain homing', icon: '💌', type: 'proj_mod', stat: 'homing', val: 0.4 },
+            { id: 'bounce', name: 'Pinball', desc: 'Projectiles bounce +2 times', icon: '🎳', type: 'proj_mod', stat: 'bounce', val: 2 },
+            { id: 'poison', name: 'Venom Vial', desc: 'Projectiles apply Poison', icon: '☠️', type: 'status', effect: 'poison' },
+            { id: 'fire', name: 'Matchbox', desc: 'Projectiles set enemies on fire', icon: '🔥', type: 'status', effect: 'burn' },
+            { id: 'freeze', name: 'Snowflake', desc: 'Chance to freeze enemies', icon: '❄️', type: 'status', effect: 'freeze' },
+            
+            // Helpers
+            { id: 'drone', name: 'Tiny Drone', desc: 'Summons a drone that shoots', icon: '🤖', type: 'helper', helperId: 'drone' },
+            { id: 'turret', name: 'Mini Turret', desc: 'Places a stationary turret', icon: '🗼', type: 'helper', helperId: 'turret' },
+            
+            // Special
+            { id: 'vampire', name: 'Blood Lust', desc: 'Heal 2 HP on enemy kill', icon: '🩸', type: 'onkill', effect: 'heal' },
+            { id: 'explosion', name: 'Bomb Vest', desc: 'Enemies explode on death', icon: '💣', type: 'onkill', effect: 'explode' },
+            { id: 'thorns', name: 'Rose Thorns', desc: 'Reflect 50% damage to attackers', icon: '🌹', type: 'defense', stat: 'thorns', val: 0.5 },
+            { id: 'phoenix', name: 'Phoenix Feather', desc: 'Revive once on death', icon: '🔥🐦', type: 'special', stat: 'revives', val: 1 },
+            { id: 'timewarp', name: 'Broken Clock', desc: 'Slows nearby enemies by 30%', icon: '⏰', type: 'aura_add', auraId: 'slow' }
         ];
 
-        // --- 2. BOOT SCENE (Asset Generation) ---
+        // --- 2. BOOT SCENE ---
         class BootScene extends Phaser.Scene {
             constructor() { super('BootScene'); }
 
             create() {
-                // Generate Player (White Circle)
+                // Player
                 let g = this.make.graphics({ x: 0, y: 0, add: false });
-                g.fillStyle(0xFFFFFF);
-                g.lineStyle(2, 0x000000);
-                g.fillCircle(16, 16, 14);
-                g.strokeCircle(16, 16, 14);
+                g.fillStyle(0xFFFFFF); g.lineStyle(2, 0x000000);
+                g.fillCircle(16, 16, 14); g.strokeCircle(16, 16, 14);
                 g.generateTexture(TYPES.PLAYER, 32, 32);
 
-                // Generate Enemy - Bat (Red Triangle-ish)
-                g.clear();
-                g.fillStyle(0xFF4444);
-                g.fillTriangle(0, 0, 32, 0, 16, 32);
+                // Enemies
+                g.clear(); g.fillStyle(0xFF4444); g.fillTriangle(0, 0, 32, 0, 16, 32);
                 g.generateTexture(TYPES.ENEMY_BAT, 32, 32);
-
-                // Generate Enemy - Skeleton (Gray Square)
-                g.clear();
-                g.fillStyle(0xCCCCCC);
-                g.lineStyle(2, 0x555555);
-                g.fillRect(0, 0, 32, 32);
-                g.strokeRect(0, 0, 32, 32);
+                g.clear(); g.fillStyle(0xCCCCCC); g.lineStyle(2, 0x555555);
+                g.fillRect(0, 0, 32, 32); g.strokeRect(0, 0, 32, 32);
                 g.generateTexture(TYPES.ENEMY_SKEL, 32, 32);
 
-                // Generate Bullet (Yellow dot)
-                g.clear();
-                g.fillStyle(0xFFFF00);
-                g.fillCircle(6, 6, 6);
+                // Projectiles
+                g.clear(); g.fillStyle(0xFFFF00); g.fillCircle(6, 6, 6);
                 g.generateTexture(TYPES.BULLET, 12, 12);
+                
+                // Orb (Planet)
+                g.clear(); g.fillStyle(0xFF8800); g.fillCircle(8, 8, 8);
+                g.generateTexture(TYPES.ORB, 16, 16);
 
-                // Generate Gem (Blue Diamond)
-                g.clear();
-                g.fillStyle(0x4FACFE);
-                // g.fillDiamond(8, 8, 16, 16); // Phaser 3 Graphics doesn't have fillDiamond
-                g.fillPoints([
-                    { x: 8, y: 0 },
-                    { x: 16, y: 8 },
-                    { x: 8, y: 16 },
-                    { x: 0, y: 8 }
-                ], true, true);
+                // Helper (Drone)
+                g.clear(); g.fillStyle(0x00FF00); g.fillRect(0,0,16,16);
+                g.generateTexture(TYPES.HELPER, 16, 16);
+
+                // Laser
+                g.clear(); g.fillStyle(0xFF0000); g.fillRect(0, 0, 32, 4);
+                g.generateTexture(TYPES.LASER, 32, 4);
+
+                // Gem
+                g.clear(); g.fillStyle(0x4FACFE);
+                g.fillPoints([{ x: 8, y: 0 }, { x: 16, y: 8 }, { x: 8, y: 16 }, { x: 0, y: 8 }], true, true);
                 g.generateTexture(TYPES.GEM, 16, 16);
 
-                // Generate Grid Tile for Background
-                g.clear();
-                g.lineStyle(2, 0x333333, 0.5);
-                g.strokeRect(0, 0, 128, 128); // Grid cells
+                // AOE Circle (Garlic)
+                g.clear(); g.fillStyle(0xFFFFFF, 0.2); g.lineStyle(2, 0xFFFFFF, 0.5);
+                g.fillCircle(64, 64, 60); g.strokeCircle(64, 64, 60);
+                g.generateTexture(TYPES.AOE, 128, 128);
+
+                // Grid
+                g.clear(); g.lineStyle(2, 0x333333, 0.5); g.strokeRect(0, 0, 128, 128);
                 g.generateTexture('grid', 128, 128);
 
                 this.scene.start('GameScene');
@@ -155,81 +194,79 @@
             constructor() { super('GameScene'); }
 
             create() {
-                // -- World Setup --
-                this.physics.world.setBounds(-10000, -10000, 20000, 20000); // "Infinite" bounds
-                
-                // Infinite Background
-                this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'grid')
-                    .setOrigin(0, 0)
-                    .setScrollFactor(0);
+                // Physics & World
+                this.physics.world.setBounds(-10000, -10000, 20000, 20000);
+                this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'grid').setOrigin(0, 0).setScrollFactor(0);
 
-                // -- Groups (Object Pooling) --
-                this.bullets = this.physics.add.group({
-                    defaultKey: TYPES.BULLET,
-                    maxSize: 100
-                });
-
-                this.enemies = this.physics.add.group({
-                    runChildUpdate: true 
-                });
-
+                // Groups
+                this.bullets = this.physics.add.group({ defaultKey: TYPES.BULLET, maxSize: 300 });
+                this.enemies = this.physics.add.group({ runChildUpdate: true });
                 this.gems = this.physics.add.group();
+                this.helpers = this.physics.add.group(); // Drones, Turrets
+                this.auras = this.add.group(); // Visual auras attached to player
+                this.floatingTexts = this.add.group(); // Damage numbers
 
-                // -- Player Setup --
-                this.player = this.physics.add.sprite(0, 0, TYPES.PLAYER);
-                this.player.setCollideWorldBounds(true); // Actually binds to massive world, effectively infinite
-                this.player.setDepth(10);
-                
-                // Player Stats
-                this.playerStats = {
-                    speed: 200,
-                    maxHp: 100,
-                    hp: 100,
-                    damageMult: 1,
-                    fireRateMult: 1, // Higher is faster? No, this is cooldown reduction. Let's make it attack speed.
-                    pickupRadius: 100,
-                    projectileCount: 1,
-                    level: 1,
-                    xp: 0,
-                    xpToNext: 10
+                // Player
+                this.player = this.physics.add.sprite(0, 0, TYPES.PLAYER).setDepth(100);
+                this.player.setCollideWorldBounds(true);
+                this.cameras.main.startFollow(this.player);
+
+                // State
+                this.stats = {
+                    speed: 200, maxHp: 100, hp: 100,
+                    damageMult: 1, fireRateMult: 1, speedMult: 1, pickupMult: 1,
+                    areaMult: 1, durationMult: 1, rangeMult: 1, xpMult: 1,
+                    projectileCount: 1, pierce: 0, homing: 0, bounce: 0,
+                    critChance: 0, critDamageMult: 1.5,
+                    damageReduction: 0, hpRegen: 0, luck: 1, thorns: 0, revives: 0,
+                    // Status Effects on hit
+                    poison: false, burn: false, freeze: false,
+                    // On Kill
+                    healOnKill: 0, explodeOnKill: false,
+                    level: 1, xp: 0, xpToNext: 20, gold: 0
+                };
+
+                // Weapon Inventory
+                // Cooldown: ms between shots
+                this.weapons = [
+                    { id: 'wand', cooldown: 800, timer: 0, type: 'auto' } // Default
+                ];
+
+                // Active Auras
+                this.activeAuras = {
+                    garlic: false, slow: false, orbit: 0
                 };
                 
-                // Camera
-                this.cameras.main.startFollow(this.player);
-                this.cameras.main.setZoom(1);
+                this.setupInputs();
+                this.setupCollisions();
+                this.setupUIReferences();
 
-                // Input
-                this.cursors = this.input.keyboard.createCursorKeys();
-                this.wasd = this.input.keyboard.addKeys('W,A,S,D');
-
-                // Logic Timers
-                this.lastShotTime = 0;
-                this.fireDelay = 800; // ms
-                
-                this.spawnTimer = 0;
-                this.spawnDelay = 1000; // ms, decreases over time
-                
+                // Timers
                 this.gameTime = 0;
                 this.kills = 0;
+                this.regenTimer = 0;
+                this.spawnTimer = 0;
+                this.spawnDelay = 1000;
+            }
 
-                // -- Collisions --
-                // Bullet hits Enemy
+            setupInputs() {
+                this.cursors = this.input.keyboard.createCursorKeys();
+                this.wasd = this.input.keyboard.addKeys('W,A,S,D');
+            }
+
+            setupCollisions() {
                 this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
-                
-                // Enemy hits Player
                 this.physics.add.overlap(this.player, this.enemies, this.hitPlayer, null, this);
-                
-                // Player collects Gem
                 this.physics.add.overlap(this.player, this.gems, this.collectGem, null, this);
+            }
 
-                // UI References
+            setupUIReferences() {
                 this.xpBarFill = document.getElementById('xp-bar-fill');
                 this.hpBarFill = document.getElementById('hp-bar-fill');
                 this.lvlText = document.getElementById('level-indicator');
                 this.timerText = document.getElementById('timer-display');
                 this.killText = document.getElementById('kill-display');
-
-                // Initial UI update
+                this.goldText = document.getElementById('gold-display');
                 this.updateUI();
             }
 
@@ -238,269 +275,599 @@
 
                 this.gameTime += delta;
                 
-                // 1. Player Movement
-                this.handleMovement();
+                // Systems
+                this.handleMovement(delta);
+                this.handleSpawning(delta);
+                this.handleWeapons(delta);
+                this.handleRegen(delta);
+                this.handleAuras(delta);
+                this.handleHelpers(delta);
+                this.handleBullets(delta); // Homing logic
+                this.handleEnemies(delta); // Status effects logic
 
-                // 2. Background Parallax
+                // BG Scroll
                 this.bg.tilePositionX = this.cameras.main.scrollX;
                 this.bg.tilePositionY = this.cameras.main.scrollY;
 
-                // 3. Spawning
-                this.spawnTimer -= delta;
-                if (this.spawnTimer <= 0) {
-                    this.spawnEnemy();
-                    // Difficulty scaling: spawn faster as time goes on, capped at 100ms
-                    let difficultyMod = Math.min(0.8, this.gameTime / 300000); // Max difficulty at 5 mins
-                    this.spawnDelay = Math.max(100, 1000 - (1000 * difficultyMod)); 
-                    this.spawnTimer = this.spawnDelay;
+                // UI
+                let seconds = Math.floor(this.gameTime / 1000);
+                let minutes = Math.floor(seconds / 60);
+                this.timerText.innerText = `Time: ${minutes.toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
+            }
+
+            handleMovement(delta) {
+                const speed = this.stats.speed * this.stats.speedMult;
+                this.player.setVelocity(0);
+                
+                let dx = 0, dy = 0;
+                if (this.cursors.left.isDown || this.wasd.A.isDown) dx = -1;
+                else if (this.cursors.right.isDown || this.wasd.D.isDown) dx = 1;
+                
+                if (this.cursors.up.isDown || this.wasd.W.isDown) dy = -1;
+                else if (this.cursors.down.isDown || this.wasd.S.isDown) dy = 1;
+
+                if (dx !== 0 || dy !== 0) {
+                    const vec = new Phaser.Math.Vector2(dx, dy).normalize().scale(speed);
+                    this.player.setVelocity(vec.x, vec.y);
                 }
 
-                // 4. Weapons (Auto Fire)
-                if (time > this.lastShotTime + (this.fireDelay / (1 + (this.playerStats.fireRateMult - 1)))) {
-                    this.fireWeapon();
-                    this.lastShotTime = time;
-                }
-
-                // 5. Enemy Logic (Chase)
-                this.enemies.children.each(enemy => {
-                    if (enemy.active) {
-                        this.physics.moveToObject(enemy, this.player, enemy.speed);
-                        
-                        // Despawn if too far
-                        const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
-                        if (dist > 1500) {
-                            enemy.destroy();
-                        }
-                    }
-                });
-
-                // 6. Loot Magnet
+                // Loot Magnet
                 this.gems.children.each(gem => {
                     if (gem.active) {
                         const dist = Phaser.Math.Distance.Between(gem.x, gem.y, this.player.x, this.player.y);
-                        if (dist < this.playerStats.pickupRadius * (this.playerStats.pickupMult || 1)) {
-                            this.physics.moveToObject(gem, this.player, 400); // Fly to player
+                        if (dist < 100 * this.stats.pickupMult) {
+                            this.physics.moveToObject(gem, this.player, 400 + (this.stats.speedMult * 50));
                         } else {
                             gem.setVelocity(0,0);
                         }
                     }
                 });
-                
-                // 7. Timer Update
-                let seconds = Math.floor(this.gameTime / 1000);
-                let minutes = Math.floor(seconds / 60);
-                seconds = seconds % 60;
-                this.timerText.innerText = `Time: ${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
             }
 
-            handleMovement() {
-                const speed = this.playerStats.speed * (this.playerStats.speedMult || 1);
-                this.player.setVelocity(0);
-
-                // Horizontal
-                if (this.cursors.left.isDown || this.wasd.A.isDown) {
-                    this.player.setVelocityX(-speed);
-                } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-                    this.player.setVelocityX(speed);
-                }
-
-                // Vertical
-                if (this.cursors.up.isDown || this.wasd.W.isDown) {
-                    this.player.setVelocityY(-speed);
-                } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-                    this.player.setVelocityY(speed);
-                }
-                
-                // Normalize for diagonal
-                if (this.player.body.velocity.x !== 0 && this.player.body.velocity.y !== 0) {
-                    this.player.body.velocity.normalize().scale(speed);
+            handleRegen(delta) {
+                if (this.stats.hpRegen > 0 && this.stats.hp < this.stats.maxHp) {
+                    this.regenTimer += delta;
+                    if (this.regenTimer >= 1000) {
+                        this.healPlayer(this.stats.hpRegen);
+                        this.regenTimer = 0;
+                    }
                 }
             }
 
-            spawnEnemy() {
-                // Ring System: Spawn outside camera
-                const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-                const radius = (Math.max(GAME_WIDTH, GAME_HEIGHT) / 2) + 100;
-                const spawnX = this.player.x + Math.cos(angle) * radius;
-                const spawnY = this.player.y + Math.sin(angle) * radius;
+            handleSpawning(delta) {
+                this.spawnTimer -= delta;
+                if (this.spawnTimer <= 0) {
+                    const radius = (Math.max(GAME_WIDTH, GAME_HEIGHT) / 2) + 100;
+                    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+                    const spawnX = this.player.x + Math.cos(angle) * radius;
+                    const spawnY = this.player.y + Math.sin(angle) * radius;
 
-                // Decide type based on time
-                let type = TYPES.ENEMY_BAT;
-                let hp = 10;
-                let speed = 80;
+                    let type = TYPES.ENEMY_BAT;
+                    let hp = 10;
+                    let speed = 80;
 
-                if (this.gameTime > 60000 && Math.random() > 0.5) {
-                    type = TYPES.ENEMY_SKEL;
-                    hp = 25;
-                    speed = 60;
+                    // Difficulty scaling
+                    const mins = this.gameTime / 60000;
+                    if (mins > 1 && Math.random() > 0.5) {
+                        type = TYPES.ENEMY_SKEL;
+                        hp = 25;
+                        speed = 60;
+                    }
+
+                    // Global HP Scaling
+                    hp *= (1 + mins * 0.5);
+
+                    let enemy = this.enemies.create(spawnX, spawnY, type);
+                    enemy.hp = hp;
+                    enemy.maxHp = hp;
+                    enemy.speed = speed;
+                    enemy.status = { poison: 0, burn: 0, freeze: 0, stun: 0 };
+                    enemy.setTint(0xffffff);
+
+                    let difficultyMod = Math.min(0.9, mins / 10); 
+                    this.spawnDelay = Math.max(50, 1000 - (900 * difficultyMod)); 
+                    this.spawnTimer = this.spawnDelay;
                 }
-
-                let enemy = this.enemies.create(spawnX, spawnY, type);
-                enemy.hp = hp + (this.gameTime / 10000); // Health scaling
-                enemy.speed = speed;
-                enemy.setTint(0xffffff);
             }
 
-            fireWeapon() {
-                // Find nearest enemy
-                let nearest = null;
-                let minDist = 600; // Range
-
+            handleEnemies(delta) {
                 this.enemies.children.each(enemy => {
                     if (enemy.active) {
-                        let dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            nearest = enemy;
+                        // Status Updates (DoT runs every frame, but simpler to do small value)
+                        if (enemy.status.poison > 0) {
+                            enemy.hp -= (0.05 * delta/16); // ~3 DPS
+                            enemy.status.poison -= delta;
+                            enemy.setTint(0x00ff00);
+                        } else if (enemy.status.burn > 0) {
+                            enemy.hp -= (0.1 * delta/16); // ~6 DPS
+                            enemy.status.burn -= delta;
+                            enemy.setTint(0xff8800);
+                        } else if (enemy.status.freeze > 0) {
+                            enemy.status.freeze -= delta;
+                            enemy.setTint(0x8888ff);
+                        } else {
+                            enemy.clearTint();
+                        }
+
+                        if (enemy.hp <= 0) return this.killEnemy(enemy);
+
+                        // Movement
+                        const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+                        
+                        if (dist > 1500) {
+                            enemy.destroy(); // Despawn
+                        } else if (enemy.status.freeze <= 0 && enemy.status.stun <= 0) {
+                            // Apply Slow Aura
+                            let moveSpeed = enemy.speed;
+                            if (this.activeAuras.slow && dist < 200 * this.stats.areaMult) {
+                                moveSpeed *= 0.7;
+                            }
+                            this.physics.moveToObject(enemy, this.player, moveSpeed);
+                        } else {
+                            enemy.setVelocity(0,0);
+                            if (enemy.status.stun > 0) enemy.status.stun -= delta;
                         }
                     }
                 });
+            }
 
-                if (nearest) {
-                    const shots = this.playerStats.projectileCount;
-                    // Fan out shots if multiple
-                    for(let i=0; i<shots; i++) {
-                        let bullet = this.bullets.get(this.player.x, this.player.y);
-                        if (bullet) {
-                            bullet.setActive(true);
-                            bullet.setVisible(true);
-                            bullet.body.enable = true; // Re-enable physics for pooled object
-                            
-                            // Calculate angle with slight spread
-                            let angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, nearest.x, nearest.y);
-                            if (shots > 1) {
-                                angle += (i - (shots-1)/2) * 0.2; // 0.2 rad spread
+            handleWeapons(delta) {
+                this.weapons.forEach(w => {
+                    w.timer -= delta;
+                    if (w.timer <= 0) {
+                        // Apply Fire Rate
+                        let cd = w.cooldown / this.stats.fireRateMult;
+                        if (w.id === 'wand') this.fireWand();
+                        else if (w.id === 'shotgun') this.fireShotgun();
+                        else if (w.id === 'laser') this.fireLaser();
+                        else if (w.id === 'fist') this.fireFist();
+                        
+                        w.timer = cd;
+                    }
+                });
+            }
+
+            handleBullets(delta) {
+                if (this.stats.homing > 0) {
+                    this.bullets.children.each(b => {
+                        if (b.active && b.homingTarget) {
+                            if (b.homingTarget.active) {
+                                // Steer towards target
+                                let angle = Phaser.Math.Angle.Between(b.x, b.y, b.homingTarget.x, b.homingTarget.y);
+                                let currentAngle = b.body.velocity.angle();
+                                let newAngle = Phaser.Math.Angle.RotateTo(currentAngle, angle, this.stats.homing * 0.1);
+                                this.physics.velocityFromRotation(newAngle, 400, b.body.velocity);
                             }
+                        }
+                    });
+                }
+            }
 
-                            this.physics.velocityFromRotation(angle, 400, bullet.body.velocity);
-                            
-                            // Auto-destroy bullet after 2 seconds
-                            this.time.delayedCall(1500, () => {
-                                if (bullet.active) {
-                                    bullet.setActive(false);
-                                    bullet.setVisible(false);
-                                }
-                            });
+            handleHelpers(delta) {
+                this.helpers.children.each(h => {
+                    if (h.active) {
+                        if (h.type === 'drone') {
+                            // Orbit slowly
+                            h.orbitAngle = (h.orbitAngle || 0) + 0.02;
+                            h.setPosition(
+                                this.player.x + Math.cos(h.orbitAngle) * 50,
+                                this.player.y + Math.sin(h.orbitAngle) * 50
+                            );
+                            h.fireTimer = (h.fireTimer || 0) - delta;
+                            if (h.fireTimer <= 0) {
+                                this.fireWand(h.x, h.y, 10, 0.5); // Helper shots are weaker
+                                h.fireTimer = 1000;
+                            }
+                        } else if (h.type === 'turret') {
+                            h.fireTimer = (h.fireTimer || 0) - delta;
+                            if (h.fireTimer <= 0) {
+                                this.fireWand(h.x, h.y, 15, 0.8);
+                                h.fireTimer = 1500;
+                            }
+                        }
+                    }
+                });
+            }
+
+            handleAuras(delta) {
+                // Orbiting Orbs
+                if (this.activeAuras.orbit > 0) {
+                    if (!this.orbs) {
+                        this.orbs = [];
+                        for(let i=0; i<this.activeAuras.orbit; i++) {
+                            let o = this.physics.add.sprite(0,0,TYPES.ORB).setDepth(90);
+                            o.orbitOffset = (Math.PI*2 / this.activeAuras.orbit) * i;
+                            this.orbs.push(o);
+                        }
+                    }
+                    // Update positions
+                    const time = this.gameTime * 0.003 * this.stats.speedMult;
+                    this.orbs.forEach((o, i) => {
+                        o.setPosition(
+                            this.player.x + Math.cos(time + o.orbitOffset) * 80 * this.stats.areaMult,
+                            this.player.y + Math.sin(time + o.orbitOffset) * 80 * this.stats.areaMult
+                        );
+                        // Manual collision check
+                        this.physics.overlap(o, this.enemies, (orb, enemy) => {
+                            this.damageEnemy(enemy, 5, false); // Low dmg, high hit rate
+                        });
+                    });
+                }
+
+                // Garlic
+                if (this.activeAuras.garlic) {
+                    if (!this.garlicSprite) {
+                        this.garlicSprite = this.add.image(0,0,TYPES.AOE).setAlpha(0.3).setDepth(5);
+                    }
+                    this.garlicSprite.setPosition(this.player.x, this.player.y);
+                    this.garlicSprite.setScale(this.stats.areaMult);
+                    this.garlicTimer = (this.garlicTimer || 0) - delta;
+                    if (this.garlicTimer <= 0) {
+                        const range = 60 * this.stats.areaMult;
+                        this.enemies.children.each(e => {
+                            if (e.active && Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y) < range) {
+                                this.damageEnemy(e, 3, false);
+                                e.status.stun = 100; // Slight knockback/stun
+                            }
+                        });
+                        this.garlicTimer = 500;
+                    }
+                }
+            }
+
+            // --- WEAPON LOGIC ---
+
+            getNearestEnemy(x, y, range=600) {
+                let nearest = null;
+                let minDist = range;
+                this.enemies.children.each(e => {
+                    if (e.active) {
+                        let d = Phaser.Math.Distance.Between(x, y, e.x, e.y);
+                        if (d < minDist) { minDist = d; nearest = e; }
+                    }
+                });
+                return nearest;
+            }
+
+            fireWand(originX = this.player.x, originY = this.player.y, dmg = 10, scale = 1) {
+                let target = this.getNearestEnemy(originX, originY);
+                if (target) {
+                    const count = this.stats.projectileCount;
+                    for (let i=0; i<count; i++) {
+                        let b = this.bullets.get(originX, originY);
+                        if (b) {
+                            this.initBullet(b, dmg * scale);
+                            let angle = Phaser.Math.Angle.Between(originX, originY, target.x, target.y);
+                            if (count > 1) angle += (i - (count-1)/2) * 0.2;
+                            this.physics.velocityFromRotation(angle, 400, b.body.velocity);
+                            b.homingTarget = target; // For homing logic
                         }
                     }
                 }
             }
 
-            hitEnemy(bullet, enemy) {
-                bullet.setActive(false);
-                bullet.setVisible(false);
-                bullet.body.enable = false; // Disable physics for pooled object
-                bullet.setPosition(-100, -100);
-
-                const dmg = 10 * this.playerStats.damageMult;
-                enemy.hp -= dmg;
-                enemy.setTint(0xff0000);
-                this.time.delayedCall(100, () => { if(enemy.active) enemy.clearTint(); });
-
-                if (enemy.hp <= 0) {
-                    // Drop Gem
-                    let gem = this.gems.create(enemy.x, enemy.y, TYPES.GEM);
-                    gem.xpValue = 10; 
-                    
-                    enemy.destroy();
-                    this.kills++;
-                    this.killText.innerText = `Kills: ${this.kills}`;
+            fireShotgun() {
+                const count = 5 + (this.stats.projectileCount - 1); // Shotgun scales too
+                let target = this.getNearestEnemy(this.player.x, this.player.y);
+                let baseAngle = target ? Phaser.Math.Angle.Between(this.player.x, this.player.y, target.x, target.y) : (Math.random() * Math.PI * 2);
+                
+                for(let i=0; i<count; i++) {
+                    let b = this.bullets.get(this.player.x, this.player.y);
+                    if (b) {
+                        this.initBullet(b, 6); // Lower dmg
+                        let angle = baseAngle + (i - (count-1)/2) * 0.15; // Tighter spread
+                        this.physics.velocityFromRotation(angle, 450, b.body.velocity);
+                    }
                 }
             }
 
-            hitPlayer(player, enemy) {
-                // Invulnerability frame could be added here
-                if (player.alpha < 1) return;
+            fireLaser() {
+                // Instant hit line
+                let target = this.getNearestEnemy(this.player.x, this.player.y, 500 * this.stats.rangeMult);
+                if (target) {
+                    let angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, target.x, target.y);
+                    // Visual
+                    let g = this.add.graphics();
+                    g.lineStyle(4, 0xFF0000, 1);
+                    g.lineBetween(this.player.x, this.player.y, target.x, target.y);
+                    this.tweens.add({ targets: g, alpha: 0, duration: 200, onComplete: () => g.destroy() });
+                    
+                    // Logic - Hit everything on line? Or just target? Let's do Pierce Laser
+                    this.damageEnemy(target, 15, true);
+                }
+            }
 
-                const dmg = 5;
-                this.playerStats.hp -= dmg;
+            fireFist() {
+                // AoE around player
+                let g = this.add.circle(this.player.x, this.player.y, 60, 0xFFFFFF, 0.5);
+                this.tweens.add({ targets: g, scale: 1.5, alpha: 0, duration: 150, onComplete: () => g.destroy() });
+                
+                this.enemies.children.each(e => {
+                    if (e.active && Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y) < 80) {
+                        this.damageEnemy(e, 20, true);
+                        // Huge Knockback
+                        const a = Phaser.Math.Angle.Between(this.player.x, this.player.y, e.x, e.y);
+                        e.x += Math.cos(a) * 50;
+                        e.y += Math.sin(a) * 50;
+                    }
+                });
+            }
+
+            initBullet(b, dmg) {
+                b.setActive(true).setVisible(true).setTint(0xFFFF00);
+                b.body.enable = true;
+                b.damage = dmg;
+                b.pierce = this.stats.pierce;
+                b.bounces = this.stats.bounce;
+                b.creationTime = this.gameTime;
+                
+                // Lifetime based on range/duration
+                this.time.delayedCall(1500 * this.stats.durationMult, () => {
+                    if (b.active) this.retireBullet(b);
+                });
+            }
+
+            retireBullet(b) {
+                b.setActive(false).setVisible(false);
+                b.body.enable = false;
+                b.setPosition(-100,-100);
+            }
+
+            // --- COLLISION LOGIC ---
+
+            hitEnemy(bullet, enemy) {
+                this.damageEnemy(enemy, bullet.damage, true);
+
+                // Handle Pierce
+                if (bullet.pierce > 0) {
+                    bullet.pierce--;
+                } else if (bullet.bounces > 0) {
+                    bullet.bounces--;
+                    // Find new target
+                    let newTarget = this.getNearestEnemy(enemy.x, enemy.y);
+                    if (newTarget && newTarget !== enemy) {
+                        let angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, newTarget.x, newTarget.y);
+                        this.physics.velocityFromRotation(angle, 300, bullet.body.velocity);
+                    } else {
+                        bullet.body.velocity.negate(); // Bounce back
+                    }
+                } else {
+                    this.retireBullet(bullet);
+                }
+            }
+
+            damageEnemy(enemy, baseDmg, showText) {
+                // 1. Calc Damage
+                let isCrit = Math.random() < this.stats.critChance;
+                let dmg = baseDmg * this.stats.damageMult;
+                if (isCrit) dmg *= this.stats.critDamageMult;
+
+                // 2. Apply
+                enemy.hp -= dmg;
+                
+                // 3. Status
+                if (this.stats.poison) enemy.status.poison = 3000;
+                if (this.stats.burn) enemy.status.burn = 3000;
+                if (this.stats.freeze && Math.random() < 0.2) enemy.status.freeze = 2000;
+
+                // 4. Visuals
+                enemy.setTint(0xFF0000);
+                this.time.delayedCall(100, () => enemy.clearTint());
+
+                if (showText) this.showDamageText(enemy.x, enemy.y, Math.round(dmg), isCrit);
+
+                // 5. Death
+                if (enemy.hp <= 0 && enemy.active) {
+                    this.killEnemy(enemy);
+                }
+            }
+
+            showDamageText(x, y, dmg, isCrit) {
+                let color = isCrit ? '#ff0000' : '#ffffff';
+                let size = isCrit ? '20px' : '14px';
+                let el = document.createElement('div');
+                el.className = 'damage-text';
+                el.innerText = dmg;
+                el.style.position = 'absolute';
+                el.style.left = x + 'px';
+                el.style.top = y + 'px';
+                el.style.color = color;
+                el.style.fontSize = size;
+                document.body.appendChild(el); // Dirty but fast
+                
+                // Animate CSS? simpler to just remove
+                setTimeout(() => {
+                    el.style.top = (y - 30) + 'px';
+                    el.style.opacity = 0;
+                }, 50);
+                setTimeout(() => el.remove(), 500);
+            }
+
+            killEnemy(enemy) {
+                // On Kill Effects
+                if (this.stats.healOnKill > 0) this.healPlayer(this.stats.healOnKill);
+                if (this.stats.explodeOnKill) {
+                    // AoE around enemy
+                    let g = this.add.circle(enemy.x, enemy.y, 40, 0xFFA500, 0.6);
+                    this.tweens.add({ targets: g, alpha: 0, duration: 200, onComplete: () => g.destroy() });
+                    this.enemies.children.each(e => {
+                        if (e.active && Phaser.Math.Distance.Between(enemy.x, enemy.y, e.x, e.y) < 50) {
+                            e.hp -= this.stats.damageMult * 20;
+                        }
+                    });
+                }
+
+                // Drop Loot
+                let gem = this.gems.create(enemy.x, enemy.y, TYPES.GEM);
+                gem.xpValue = 10 * (this.stats.xpMult || 1);
+                
+                enemy.destroy();
+                this.kills++;
+                this.killText.innerText = `Kills: ${this.kills}`;
+            }
+
+            hitPlayer(player, enemy) {
+                if (player.alpha < 1) return; // Invulnerable
+
+                // Thorns
+                if (this.stats.thorns > 0) {
+                    this.damageEnemy(enemy, 10 * this.stats.thorns, true);
+                    // Knockback enemy
+                    const a = Phaser.Math.Angle.Between(player.x, player.y, enemy.x, enemy.y);
+                    enemy.x += Math.cos(a) * 30;
+                    enemy.y += Math.sin(a) * 30;
+                }
+
+                // Take Damage
+                const rawDmg = 10;
+                const finalDmg = rawDmg * (1 - this.stats.damageReduction);
+                this.stats.hp -= finalDmg;
                 this.updateUI();
 
-                // Flash player
+                // Flash & Invuln
                 player.alpha = 0.5;
                 this.time.delayedCall(500, () => player.alpha = 1);
 
-                // Knockback enemies slightly
-                const angle = Phaser.Math.Angle.Between(player.x, player.y, enemy.x, enemy.y);
-                const knockback = 100;
-                enemy.x += Math.cos(angle) * knockback;
-                enemy.y += Math.sin(angle) * knockback;
-
-                if (this.playerStats.hp <= 0) {
-                    this.gameOver();
+                if (this.stats.hp <= 0) {
+                    if (this.stats.revives > 0) {
+                        this.stats.revives--;
+                        this.stats.hp = this.stats.maxHp * 0.5;
+                        // Boom
+                        this.enemies.children.each(e => {
+                            if (e.active && Phaser.Math.Distance.Between(player.x, player.y, e.x, e.y) < 300) {
+                                e.destroy();
+                            }
+                        });
+                        this.updateUI();
+                    } else {
+                        this.gameOver();
+                    }
                 }
+            }
+
+            healPlayer(amount) {
+                this.stats.hp = Math.min(this.stats.hp + amount, this.stats.maxHp);
+                this.updateUI();
             }
 
             collectGem(player, gem) {
                 gem.destroy();
-                this.playerStats.xp += gem.xpValue;
-                
-                if (this.playerStats.xp >= this.playerStats.xpToNext) {
-                    this.playerStats.xp -= this.playerStats.xpToNext;
-                    this.playerStats.xpToNext = Math.floor(this.playerStats.xpToNext * 1.5);
-                    this.playerStats.level++;
+                this.stats.xp += gem.xpValue;
+                if (this.stats.xp >= this.stats.xpToNext) {
+                    this.stats.xp -= this.stats.xpToNext;
+                    this.stats.xpToNext = Math.floor(this.stats.xpToNext * 1.5);
+                    this.stats.level++;
                     this.triggerLevelUp();
                 }
                 this.updateUI();
             }
 
             updateUI() {
-                // XP Bar
-                const xpPct = (this.playerStats.xp / this.playerStats.xpToNext) * 100;
+                const xpPct = (this.stats.xp / this.stats.xpToNext) * 100;
                 this.xpBarFill.style.width = `${xpPct}%`;
-                this.lvlText.innerText = `LVL ${this.playerStats.level}`;
+                this.lvlText.innerText = `LVL ${this.stats.level}`;
                 
-                // HP Bar
-                const hpPct = Math.max(0, (this.playerStats.hp / this.playerStats.maxHp) * 100);
+                const hpPct = Math.max(0, (this.stats.hp / this.stats.maxHp) * 100);
                 this.hpBarFill.style.width = `${hpPct}%`;
             }
+
+            // --- UPGRADE SYSTEM ---
 
             triggerLevelUp() {
                 this.isPaused = true;
                 this.physics.pause();
                 
-                // Pick 3 random upgrades
-                const options = [];
-                const pool = [...UPGRADES];
+                // Select 3 random upgrades from full list
+                // For better UX, weight them? No, pure random for now.
+                let choices = [];
+                let pool = [...UPGRADES];
                 for(let i=0; i<3; i++) {
-                    const idx = Math.floor(Math.random() * pool.length);
-                    options.push(pool[idx]);
-                    // Don't remove from pool if we want duplicates allowed, or remove if unique
+                    if (pool.length === 0) break;
+                    let idx = Math.floor(Math.random() * pool.length);
+                    choices.push(pool[idx]);
+                    pool.splice(idx, 1);
                 }
 
-                const modal = document.getElementById('upgrade-modal');
                 const container = document.getElementById('cards-container');
-                container.innerHTML = ''; // Clear old
-
-                options.forEach(opt => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.innerHTML = `
+                container.innerHTML = '';
+                
+                choices.forEach(opt => {
+                    const el = document.createElement('div');
+                    el.className = 'card';
+                    // Determine type label
+                    let typeLabel = opt.type.split('_')[0].toUpperCase();
+                    
+                    el.innerHTML = `
+                        <div class="card-type">${typeLabel}</div>
                         <div class="card-icon">${opt.icon}</div>
                         <div class="card-title">${opt.name}</div>
                         <div class="card-desc">${opt.desc}</div>
                     `;
-                    card.onclick = () => this.selectUpgrade(opt);
-                    container.appendChild(card);
+                    el.onclick = () => this.applyUpgrade(opt);
+                    container.appendChild(el);
                 });
 
-                modal.style.display = 'flex';
+                document.getElementById('upgrade-modal').style.display = 'flex';
             }
 
-            selectUpgrade(opt) {
-                if (opt.type === 'stat') {
-                    if (!this.playerStats[opt.stat]) this.playerStats[opt.stat] = 1;
-                    this.playerStats[opt.stat] += opt.val;
-                } else if (opt.type === 'weapon') {
-                    this.playerStats[opt.stat] += opt.val;
-                } else if (opt.type === 'heal') {
-                    this.playerStats.maxHp *= 1.2;
-                    this.playerStats.hp = this.playerStats.maxHp;
+            applyUpgrade(opt) {
+                // Apply logic
+                switch(opt.type) {
+                    case 'stat':
+                    case 'defense':
+                    case 'economy':
+                        this.stats[opt.stat] = (this.stats[opt.stat] || 0) + opt.val;
+                        break;
+                    case 'heal':
+                        this.stats.maxHp *= 1.2;
+                        this.stats.hp = this.stats.maxHp;
+                        break;
+                    case 'weapon_mod':
+                        this.stats[opt.stat] += opt.val;
+                        break;
+                    case 'weapon_add':
+                        // Check if we already have it
+                        let hasWep = this.weapons.find(w => w.id === opt.weaponId);
+                        if (!hasWep) {
+                            let cd = 1000;
+                            if (opt.weaponId === 'shotgun') cd = 1200;
+                            if (opt.weaponId === 'laser') cd = 2000;
+                            if (opt.weaponId === 'fist') cd = 1500;
+                            this.weapons.push({ id: opt.weaponId, cooldown: cd, timer: 0 });
+                        }
+                        break;
+                    case 'proj_mod':
+                        this.stats[opt.stat] += opt.val;
+                        break;
+                    case 'status':
+                        this.stats[opt.effect] = true;
+                        break;
+                    case 'onkill':
+                        if (opt.effect === 'heal') this.stats.healOnKill += 2;
+                        if (opt.effect === 'explode') this.stats.explodeOnKill = true;
+                        break;
+                    case 'helper':
+                        // Create visual helper
+                        let h = this.helpers.create(this.player.x, this.player.y, TYPES.HELPER);
+                        h.type = opt.helperId;
+                        if (opt.helperId === 'turret') {
+                             h.body.immovable = true; // Turret stays
+                        }
+                        break;
+                    case 'aura_add':
+                        if (opt.auraId === 'garlic') this.activeAuras.garlic = true;
+                        if (opt.auraId === 'orbit') {
+                            this.activeAuras.orbit += opt.val;
+                            this.orbs = null; // Trigger rebuild
+                        }
+                        if (opt.auraId === 'slow') this.activeAuras.slow = true;
+                        break;
+                    case 'special':
+                        if (opt.stat) this.stats[opt.stat] += opt.val;
+                        break;
                 }
 
                 this.updateUI();
-
-                // Resume
                 document.getElementById('upgrade-modal').style.display = 'none';
                 this.isPaused = false;
                 this.physics.resume();
