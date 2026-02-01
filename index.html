@@ -52,7 +52,6 @@
         <div id="stats-panel">
             <div id="timer-display">Time: 00:00</div>
             <div id="kill-display">Kills: 0</div>
-            <div id="gold-display">Gold: 0</div>
             <div style="margin-top:5px; font-size:12px; color:#aaa;">Press ESC to Pause</div>
         </div>
 
@@ -99,7 +98,8 @@
             ORB: 'orb',
             LASER: 'laser',
             HELPER: 'helper',
-            AOE: 'aoe'
+            AOE: 'aoe',
+            PARTICLE: 'particle'
         };
 
         const UPGRADES = [
@@ -130,18 +130,18 @@
             { id: 'garlic', name: 'Garlic Aura', desc: 'Damages all enemies in radius', icon: '🧄', type: 'aura_add', auraId: 'garlic', oneTime: true },
 
             // Projectile Mods
-            { id: 'homing', name: 'Love Letter', desc: 'Projectiles gain homing', icon: '💌', type: 'proj_mod', stat: 'homing', val: 0.4 },
-            { id: 'bounce', name: 'Pinball', desc: 'Projectiles bounce +2 times', icon: '🎳', type: 'proj_mod', stat: 'bounce', val: 2 },
-            { id: 'poison', name: 'Venom Vial', desc: 'Projectiles apply Poison', icon: '☠️', type: 'status', effect: 'poison' },
-            { id: 'fire', name: 'Matchbox', desc: 'Projectiles set enemies on fire', icon: '🔥', type: 'status', effect: 'burn' },
-            { id: 'freeze', name: 'Snowflake', desc: 'Chance to freeze enemies', icon: '❄️', type: 'status', effect: 'freeze' },
+            { id: 'homing', name: 'Love Letter', desc: 'Projectiles gain homing', icon: '💌', type: 'proj_mod', stat: 'homing', val: 0.4, oneTime: true },
+            { id: 'bounce', name: 'Pinball', desc: 'Projectiles bounce +2 times', icon: '🎳', type: 'proj_mod', stat: 'bounce', val: 2, oneTime: true },
+            { id: 'poison', name: 'Venom Vial', desc: 'Projectiles apply Poison', icon: '☠️', type: 'status', effect: 'poison', oneTime: true },
+            { id: 'fire', name: 'Matchbox', desc: 'Projectiles set enemies on fire', icon: '🔥', type: 'status', effect: 'burn', oneTime: true },
+            { id: 'freeze', name: 'Snowflake', desc: 'Chance to freeze enemies', icon: '❄️', type: 'status', effect: 'freeze', oneTime: true },
             
             // Helpers
             { id: 'drone', name: 'Tiny Drone', desc: 'Summons a drone that shoots', icon: '🤖', type: 'helper', helperId: 'drone' },
             { id: 'turret', name: 'Mini Turret', desc: 'Places a stationary turret', icon: '🗼', type: 'helper', helperId: 'turret' },
             
             // Special
-            { id: 'vampire', name: 'Blood Lust', desc: 'Heal 2 HP on enemy kill', icon: '🩸', type: 'onkill', effect: 'heal' },
+            { id: 'vampire', name: 'Blood Lust', desc: 'Heal 2 HP on enemy kill', icon: '🩸', type: 'onkill', effect: 'heal', oneTime: true },
             { id: 'explosion', name: 'Bomb Vest', desc: 'Enemies explode on death', icon: '💣', type: 'onkill', effect: 'explode' },
             { id: 'thorns', name: 'Rose Thorns', desc: 'Reflect 50% damage to attackers', icon: '🌹', type: 'defense', stat: 'thorns', val: 0.5 },
             { id: 'phoenix', name: 'Phoenix Feather', desc: 'Revive once on death', icon: '🔥🐦', type: 'special', stat: 'revives', val: 1, oneTime: true },
@@ -187,6 +187,10 @@
                 g.fillPoints([{ x: 8, y: 0 }, { x: 16, y: 8 }, { x: 8, y: 16 }, { x: 0, y: 8 }], true, true);
                 g.generateTexture(TYPES.GEM, 16, 16);
 
+                // Particle
+                g.clear(); g.fillStyle(0xFFFFFF); g.fillCircle(4,4,4);
+                g.generateTexture(TYPES.PARTICLE, 8, 8);
+
                 // AOE Circle (Garlic)
                 g.clear(); g.fillStyle(0xFFFFFF, 0.2); g.lineStyle(2, 0xFFFFFF, 0.5);
                 g.fillCircle(64, 64, 60); g.strokeCircle(64, 64, 60);
@@ -225,6 +229,12 @@
                 // Graphics for persistent effects (Laser)
                 this.laserGraphics = this.add.graphics().setDepth(99);
 
+                // Particles
+                this.particles = this.add.particles(0, 0, TYPES.PARTICLE, {
+                    speed: 100, scale: { start: 1, end: 0 }, blendMode: 'ADD', lifespan: 500, on: false
+                });
+                this.particles.setDepth(101);
+
                 // State
                 this.stats = {
                     speed: 200, maxHp: 100, hp: 100,
@@ -237,7 +247,7 @@
                     poison: false, burn: false, freeze: false,
                     // On Kill
                     healOnKill: 0, explodeOnKill: false,
-                    level: 1, xp: 0, xpToNext: 20, gold: 0
+                    level: 1, xp: 0, xpToNext: 20
                 };
 
                 // Weapon Inventory
@@ -268,6 +278,7 @@
                 this.regenTimer = 0;
                 this.spawnTimer = 0;
                 this.spawnDelay = 1000;
+                this.waveCycle = 0;
                 this.isPaused = false;
             }
 
@@ -305,7 +316,6 @@
                 this.lvlText = document.getElementById('level-indicator');
                 this.timerText = document.getElementById('timer-display');
                 this.killText = document.getElementById('kill-display');
-                this.goldText = document.getElementById('gold-display');
                 this.updateUI();
             }
 
@@ -375,8 +385,22 @@
             }
 
             handleSpawning(delta) {
+                const mins = this.gameTime / 60000;
+                
+                // Periodic Wave check (every 60s)
+                const currentWaveCycle = Math.floor(mins);
+                if (currentWaveCycle > this.waveCycle) {
+                    this.waveCycle = currentWaveCycle;
+                    this.spawnWave(mins);
+                }
+
+                // Normal Spawning
                 this.spawnTimer -= delta;
                 if (this.spawnTimer <= 0) {
+                    // Formula from user
+                    this.spawnDelay = Math.max(20, 1200 * Math.pow(0.92, mins));
+                    this.spawnTimer = this.spawnDelay;
+
                     const radius = (Math.max(GAME_WIDTH, GAME_HEIGHT) / 2) + 100;
                     const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
                     const spawnX = this.player.x + Math.cos(angle) * radius;
@@ -386,16 +410,14 @@
                     let hp = 10;
                     let speed = 80;
 
-                    // Difficulty scaling
-                    const mins = this.gameTime / 60000;
                     if (mins > 1 && Math.random() > 0.5) {
                         type = TYPES.ENEMY_SKEL;
                         hp = 25;
                         speed = 60;
                     }
 
-                    // Global HP Scaling
-                    hp *= (1 + mins * 0.5);
+                    // HP Scaling Formula from user
+                    hp *= Math.pow(1.08, mins);
 
                     let enemy = this.enemies.create(spawnX, spawnY, type);
                     enemy.hp = hp;
@@ -403,11 +425,40 @@
                     enemy.speed = speed;
                     enemy.status = { poison: 0, burn: 0, freeze: 0, stun: 0 };
                     enemy.setTint(0xffffff);
-
-                    let difficultyMod = Math.min(0.9, mins / 10); 
-                    this.spawnDelay = Math.max(50, 1000 - (900 * difficultyMod)); 
-                    this.spawnTimer = this.spawnDelay;
                 }
+            }
+
+            spawnWave(mins) {
+                // Burst Spawn 10-20 enemies
+                const count = Phaser.Math.Between(10, 20);
+                const radius = (Math.max(GAME_WIDTH, GAME_HEIGHT) / 2) + 150;
+                
+                for(let i=0; i<count; i++) {
+                    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+                    const spawnX = this.player.x + Math.cos(angle) * radius;
+                    const spawnY = this.player.y + Math.sin(angle) * radius;
+                    
+                    let enemy = this.enemies.create(spawnX, spawnY, TYPES.ENEMY_BAT);
+                    enemy.hp = 10 * Math.pow(1.08, mins);
+                    enemy.maxHp = enemy.hp;
+                    enemy.speed = 100; // Fast rush
+                    enemy.status = { poison: 0, burn: 0, freeze: 0, stun: 0 };
+                    enemy.setTint(0xffaa00); // Orange tint for wave enemies
+                }
+
+                // Elite / Boss
+                const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+                const spawnX = this.player.x + Math.cos(angle) * radius;
+                const spawnY = this.player.y + Math.sin(angle) * radius;
+                
+                let boss = this.enemies.create(spawnX, spawnY, TYPES.ENEMY_SKEL);
+                let bossHp = 200 * Math.pow(1.2, mins);
+                boss.hp = bossHp;
+                boss.maxHp = bossHp;
+                boss.speed = 40; // Slow but tanky
+                boss.setScale(2.5);
+                boss.status = { poison: 0, burn: 0, freeze: 0, stun: 0 };
+                boss.setTint(0xff0000); // Red tint
             }
 
             handleEnemies(delta) {
@@ -426,7 +477,8 @@
                             enemy.status.freeze -= delta;
                             enemy.setTint(0x8888ff);
                         } else {
-                            enemy.clearTint();
+                            if (enemy.scaleX > 2) enemy.setTint(0xff0000); // Boss
+                            else enemy.clearTint();
                         }
 
                         if (enemy.hp <= 0) {
@@ -719,7 +771,7 @@
 
             damageEnemy(enemy, baseDmg, showText) {
                 // 1. Calc Damage
-                let isCrit = Math.random() < this.stats.critChance;
+                let isCrit = Math.random() < (this.stats.critChance + (this.stats.luck-1)*0.1); // Luck slightly affects crit
                 let dmg = baseDmg * this.stats.damageMult;
                 if (isCrit) dmg *= this.stats.critDamageMult;
 
@@ -735,7 +787,7 @@
                 enemy.setTint(0xFF0000);
                 this.time.delayedCall(100, () => enemy.clearTint());
 
-                if (showText) this.showDamageText(enemy.x, enemy.y, Math.round(dmg), isCrit);
+                if (showText) this.showDamageText(enemy.x, enemy.y, Math.round(dmg), isCrit ? '#ff0000' : '#ffffff');
 
                 // 5. Death
                 if (enemy.hp <= 0 && enemy.active) {
@@ -743,12 +795,10 @@
                 }
             }
 
-            showDamageText(x, y, dmg, isCrit) {
-                let color = isCrit ? '#ff0000' : '#ffffff';
-                let fontSize = isCrit ? '20px' : '14px';
+            showDamageText(x, y, text, color) {
+                let fontSize = (color === '#ff0000' || color === '#00ff00') ? '20px' : '14px';
                 
-                // Create Phaser Text object instead of DOM element so it stays correctly positioned in world
-                let textObj = this.add.text(x, y, dmg.toString(), {
+                let textObj = this.add.text(x, y, text.toString(), {
                     fontFamily: 'Segoe UI',
                     fontSize: fontSize,
                     color: color,
@@ -756,7 +806,6 @@
                     strokeThickness: 3
                 }).setOrigin(0.5).setDepth(200);
 
-                // Tween it up and fade out
                 this.tweens.add({
                     targets: textObj,
                     y: y - 40,
@@ -783,9 +832,18 @@
                     });
                 }
 
-                // Drop Loot
+                // Drop Loot - LUCK MECHANIC
+                // High luck increases chance of Red Gem (Big XP)
                 let gem = this.gems.create(enemy.x, enemy.y, TYPES.GEM);
-                gem.xpValue = 10 * (this.stats.xpMult || 1);
+                let isLucky = Math.random() < (0.05 * this.stats.luck);
+                
+                if (isLucky) {
+                    gem.setTint(0xff0000); // Red Gem
+                    gem.xpValue = 50 * (this.stats.xpMult || 1);
+                    gem.setScale(1.5);
+                } else {
+                    gem.xpValue = 10 * (this.stats.xpMult || 1);
+                }
                 
                 enemy.destroy();
                 this.kills++;
@@ -818,7 +876,12 @@
                     if (this.stats.revives > 0) {
                         this.stats.revives--;
                         this.stats.hp = this.stats.maxHp * 0.5;
-                        // Boom
+                        
+                        // REVIVE EXPLOSION
+                        this.particles.setPosition(player.x, player.y);
+                        this.particles.explode(50); // Burst of 50 particles
+
+                        // Boom damage
                         this.enemies.children.each(e => {
                             if (e.active && Phaser.Math.Distance.Between(player.x, player.y, e.x, e.y) < 300) {
                                 e.destroy();
@@ -832,7 +895,16 @@
             }
 
             healPlayer(amount) {
+                if (this.stats.hp >= this.stats.maxHp) return;
+                
+                let oldHp = this.stats.hp;
                 this.stats.hp = Math.min(this.stats.hp + amount, this.stats.maxHp);
+                
+                let healed = Math.floor(this.stats.hp - oldHp);
+                if (healed > 0) {
+                    this.showDamageText(this.player.x, this.player.y - 20, `+${healed}`, '#00ff00');
+                }
+                
                 this.updateUI();
             }
 
