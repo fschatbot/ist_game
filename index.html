@@ -61,6 +61,20 @@
 				font-size: 24px;
 				text-shadow: 2px 2px 0 #000;
 			}
+
+			/* Labels above bars */
+			.bar-label {
+				position: absolute;
+				width: 100%;
+				text-align: center;
+				font-size: 10px;
+				color: white;
+				font-weight: bold;
+				text-shadow: 1px 1px 0 #000;
+				top: -14px;
+				left: 0;
+			}
+
 			#hp-bar-container {
 				position: absolute;
 				bottom: 30px;
@@ -96,6 +110,39 @@
 				font-size: 12px;
 				line-height: 1.6;
 				font-family: monospace;
+			}
+
+			/* Inventory UI */
+			#inventory-container {
+				position: absolute;
+				bottom: 20px;
+				right: 20px;
+				display: flex;
+				flex-direction: row-reverse;
+				flex-wrap: wrap-reverse;
+				gap: 5px;
+				max-width: 20%;
+			}
+			.inv-item {
+				width: 40px;
+				height: 40px;
+				background: rgba(0, 0, 0, 0.6);
+				border: 1px solid #444;
+				border-radius: 4px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 20px;
+				position: relative;
+			}
+			.inv-count {
+				position: absolute;
+				bottom: -2px;
+				right: 2px;
+				font-size: 10px;
+				font-weight: bold;
+				color: #fff;
+				text-shadow: 1px 1px 0 #000;
 			}
 
 			/* Level Up Modal */
@@ -242,12 +289,17 @@
 				<!-- Populated by JS -->
 			</div>
 
+			<!-- Inventory -->
+			<div id="inventory-container"></div>
+
 			<div id="xp-bar-container">
+				<div class="bar-label">XP</div>
 				<div id="xp-bar-fill"></div>
 			</div>
 			<div id="level-indicator">LVL 1</div>
 
 			<div id="hp-bar-container">
+				<div class="bar-label">HEALTH</div>
 				<div id="hp-bar-fill"></div>
 			</div>
 		</div>
@@ -285,6 +337,7 @@
 				ORB: "orb",
 				LASER: "laser",
 				HELPER: "helper",
+				GRENADE: "grenade",
 				AOE: "aoe",
 				PARTICLE: "particle",
 			};
@@ -306,14 +359,15 @@
 				{ id: "luck", name: "Four Leaf", desc: "+20% Luck (better drops)", icon: "🍀", type: "stat", stat: "luck", val: 0.2 },
 				{ id: "telescope", name: "Stargazer", desc: "Projectiles gain +50% range", icon: "🔭", type: "stat", stat: "rangeMult", val: 0.5 },
 				{ id: "xpboost", name: "Study Book", desc: "+25% XP gain", icon: "📖", type: "economy", stat: "xpMult", val: 0.25 },
-				{ id: "choices", name: "Diploma", desc: "Adds +1 Option to future level ups", icon: "📜", type: "special", stat: "upgradeChoices", val: 1 },
+				{ id: "choices", name: "Diploma", desc: "Adds +1 Option to future level ups", icon: "📜", type: "special", stat: "upgradeChoices", val: 1, oneTime: true },
 
-				// Weapons (One-Time)
+				// Weapons
 				{ id: "multi", name: "Twin Wand", desc: "Add +1 Projectile to attacks", icon: "✨", type: "weapon_mod", stat: "projectileCount", val: 1 },
 				{ id: "triple", name: "Trident", desc: "Add +2 Projectiles to attacks", icon: "🔱", type: "weapon_mod", stat: "projectileCount", val: 2 },
 				{ id: "shotgun", name: "Scattergun", desc: "Fires a cone of 5 weak bullets", icon: "🔫", type: "weapon_add", weaponId: "shotgun", oneTime: true },
 				{ id: "laser", name: "Red Pointer", desc: "Lock-on Laser beam (Continuous)", icon: "🔴", type: "weapon_add", weaponId: "laser", oneTime: true },
 				{ id: "fist", name: "Iron Knuckle", desc: "Melee punch nearby enemies", icon: "👊", type: "weapon_add", weaponId: "fist", oneTime: true },
+				{ id: "grenade", name: "Frag Grenade", desc: "Throws explosives periodically", icon: "💣", type: "weapon_add", weaponId: "grenade", oneTime: true },
 				{ id: "orbit", name: "Planets", desc: "Spawn 2 orbiting fireballs", icon: "🪐", type: "aura_add", auraId: "orbit", val: 2 },
 				{ id: "garlic", name: "Garlic Aura", desc: "Damages all enemies in radius", icon: "🧄", type: "aura_add", auraId: "garlic", oneTime: true },
 
@@ -330,7 +384,7 @@
 
 				// Special
 				{ id: "vampire", name: "Blood Lust", desc: "Heal 2 HP on enemy kill", icon: "🩸", type: "onkill", effect: "heal", oneTime: true },
-				{ id: "explosion", name: "Bomb Vest", desc: "Enemies explode on death", icon: "💣", type: "onkill", effect: "explode", oneTime: true },
+				{ id: "explosion", name: "Bomb Vest", desc: "Enemies explode on death", icon: "🧨", type: "onkill", effect: "explode", oneTime: true },
 				{ id: "thorns", name: "Rose Thorns", desc: "Reflect 50% damage to attackers", icon: "🌹", type: "defense", stat: "thorns", val: 0.5 },
 				{ id: "phoenix", name: "Phoenix Feather", desc: "Revive once on death", icon: "🐦‍🔥", type: "special", stat: "revives", val: 1, oneTime: true },
 				{ id: "timewarp", name: "Broken Clock", desc: "Slows nearby enemies by 30%", icon: "⏰", type: "aura_add", auraId: "slow", oneTime: true },
@@ -386,6 +440,14 @@
 					g.fillStyle(0xff0000);
 					g.fillRect(0, 0, 32, 4);
 					g.generateTexture(TYPES.LASER, 32, 4);
+
+					// Grenade
+					g.clear();
+					g.fillStyle(0x556b2f);
+					g.fillCircle(6, 6, 6);
+					g.lineStyle(1, 0x000000);
+					g.strokeCircle(6, 6, 6);
+					g.generateTexture(TYPES.GRENADE, 12, 12);
 
 					// Gem
 					g.clear();
@@ -487,7 +549,7 @@
 						luck: 1,
 						thorns: 0,
 						revives: 0,
-						upgradeChoices: 3, // Default choices
+						upgradeChoices: 3,
 						// Status Effects on hit
 						poison: false,
 						burn: false,
@@ -501,10 +563,10 @@
 					};
 
 					// Weapon Inventory
-					// Cooldown: ms between shots
-					this.weapons = [
-						{ id: "wand", cooldown: 800, timer: 0, type: "auto" }, // Default
-					];
+					this.weapons = [{ id: "wand", cooldown: 800, timer: 0, type: "auto" }];
+
+					// Inventory Tracker for UI
+					this.takenUpgrades = {}; // { id: count }
 
 					// Laser State
 					this.laserState = {
@@ -585,6 +647,7 @@
 					this.timerText = document.getElementById("timer-display");
 					this.killText = document.getElementById("kill-display");
 					this.statsDetails = document.getElementById("stats-details");
+					this.inventoryContainer = document.getElementById("inventory-container");
 					this.updateUI();
 				}
 
@@ -701,9 +764,11 @@
 				spawnWave(mins) {
 					// Burst Spawn 30-40 enemies
 					const count = Phaser.Math.Between(30, 40);
-					const radius = Math.max(GAME_WIDTH, GAME_HEIGHT) / 2 + 150;
+					// Add radius randomization for scatter
+					const baseRadius = Math.max(GAME_WIDTH, GAME_HEIGHT) / 2 + 150;
 
 					for (let i = 0; i < count; i++) {
+						const radius = baseRadius + Phaser.Math.Between(-50, 100);
 						const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
 						const spawnX = this.player.x + Math.cos(angle) * radius;
 						const spawnY = this.player.y + Math.sin(angle) * radius;
@@ -718,8 +783,8 @@
 
 					// Elite / Boss
 					const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-					const spawnX = this.player.x + Math.cos(angle) * radius;
-					const spawnY = this.player.y + Math.sin(angle) * radius;
+					const spawnX = this.player.x + Math.cos(angle) * baseRadius;
+					const spawnY = this.player.y + Math.sin(angle) * baseRadius;
 
 					let boss = this.enemies.create(spawnX, spawnY, TYPES.ENEMY_SKEL);
 					let bossHp = 200 * Math.pow(1.2, mins);
@@ -727,6 +792,7 @@
 					boss.maxHp = bossHp;
 					boss.speed = 40; // Slow but tanky
 					boss.setScale(2.5);
+					boss.isElite = true; // Mark as elite
 					boss.status = { poison: 0, burn: 0, freeze: 0, stun: 0 };
 					boss.setTint(0xff0000); // Red tint
 				}
@@ -782,7 +848,6 @@
 				handleWeapons(delta) {
 					this.weapons.forEach((w) => {
 						if (w.id === "laser") {
-							// Laser logic is handled in handleLaserLogic separately to persist
 							return;
 						}
 
@@ -792,6 +857,7 @@
 							if (w.id === "wand") this.fireWand();
 							else if (w.id === "shotgun") this.fireShotgun();
 							else if (w.id === "fist") this.fireFist();
+							else if (w.id === "grenade") this.fireGrenade();
 
 							w.timer = cd;
 						}
@@ -814,6 +880,7 @@
 							if (target) {
 								this.laserState.target = target;
 								this.laserState.tickTimer = 0;
+								laserWep.timer = laserWep.cooldown;
 							}
 						}
 					}
@@ -868,6 +935,9 @@
 				handleHelpers(delta) {
 					this.helpers.children.each((h) => {
 						if (h.active) {
+							// Ensure helpers don't interact physically if not intended
+							if (h.body) h.body.checkCollision.none = true;
+
 							if (h.type === "drone") {
 								// Orbit slowly
 								h.orbitAngle = (h.orbitAngle || 0) + 0.02;
@@ -897,6 +967,8 @@
 								let o = this.physics.add.sprite(0, 0, TYPES.ORB).setDepth(90);
 								o.orbitOffset = ((Math.PI * 2) / this.activeAuras.orbit) * i;
 								this.orbs.push(o);
+								// Ensure orbits don't block bullets (though they are separate groups, explicit is good)
+								if (o.body) o.body.checkCollision.none = true;
 							}
 						}
 						// Update positions
@@ -1007,6 +1079,38 @@
 					});
 				}
 
+				fireGrenade() {
+					let a = Math.random() * Math.PI * 2;
+					let tx = this.player.x + Math.cos(a) * 200;
+					let ty = this.player.y + Math.sin(a) * 200;
+
+					let g = this.add.sprite(this.player.x, this.player.y, TYPES.GRENADE);
+					this.tweens.add({
+						targets: g,
+						x: tx,
+						y: ty,
+						duration: 600,
+						ease: "Power2",
+						onComplete: () => {
+							g.destroy();
+							// Explode
+							this.triggerExplosion(tx, ty, 30, 80);
+						},
+					});
+				}
+
+				triggerExplosion(x, y, dmg, radius) {
+					// Visual
+					let circ = this.add.circle(x, y, radius, 0xffa500, 0.7);
+					this.tweens.add({ targets: circ, alpha: 0, scale: 1.2, duration: 200, onComplete: () => circ.destroy() });
+					// Damage
+					this.enemies.children.each((e) => {
+						if (e.active && Phaser.Math.Distance.Between(x, y, e.x, e.y) < radius) {
+							this.damageEnemy(e, dmg, true);
+						}
+					});
+				}
+
 				initBullet(b, dmg) {
 					b.setActive(true).setVisible(true).setTint(0xffff00);
 					b.body.enable = true;
@@ -1106,27 +1210,35 @@
 					// On Kill Effects
 					if (this.stats.healOnKill > 0) this.healPlayer(this.stats.healOnKill);
 					if (this.stats.explodeOnKill) {
-						// AoE around enemy
-						let g = this.add.circle(enemy.x, enemy.y, 40, 0xffa500, 0.6);
-						this.tweens.add({ targets: g, alpha: 0, duration: 200, onComplete: () => g.destroy() });
-						this.enemies.children.each((e) => {
-							if (e.active && Phaser.Math.Distance.Between(enemy.x, enemy.y, e.x, e.y) < 50) {
-								e.hp -= this.stats.damageMult * 20;
-							}
+						// Delay before damage
+						this.time.delayedCall(75, () => {
+							// Reduced radius (37.5 is 75% of 50) and reduced damage (17)
+							this.triggerExplosion(enemy.x, enemy.y, 17 * this.stats.damageMult, 30);
 						});
 					}
 
 					// Drop Loot - LUCK MECHANIC
-					// High luck increases chance of Red Gem (Big XP)
-					let gem = this.gems.create(enemy.x, enemy.y, TYPES.GEM);
-					let isLucky = Math.random() < 0.05 * this.stats.luck;
-
-					if (isLucky) {
-						gem.setTint(0xff0000); // Red Gem
-						gem.xpValue = 50 * (this.stats.xpMult || 1);
-						gem.setScale(1.5);
+					// Check elite
+					if (enemy.isElite) {
+						// Drop 2 red orbs
+						for (let i = 0; i < 2; i++) {
+							let gem = this.gems.create(enemy.x + i * 10, enemy.y, TYPES.GEM);
+							gem.setTint(0xff0000);
+							gem.xpValue = 50 * (this.stats.xpMult || 1);
+							gem.setScale(1.5);
+						}
 					} else {
-						gem.xpValue = 10 * (this.stats.xpMult || 1);
+						// Standard drop
+						let gem = this.gems.create(enemy.x, enemy.y, TYPES.GEM);
+						let isLucky = Math.random() < 0.05 * this.stats.luck;
+
+						if (isLucky) {
+							gem.setTint(0xff0000); // Red Gem
+							gem.xpValue = 50 * (this.stats.xpMult || 1);
+							gem.setScale(1.5);
+						} else {
+							gem.xpValue = 10 * (this.stats.xpMult || 1);
+						}
 					}
 
 					enemy.destroy();
@@ -1159,11 +1271,23 @@
 					if (this.stats.hp <= 0) {
 						if (this.stats.revives > 0) {
 							this.stats.revives--;
+							this.takenUpgrades["phoenix"] = (this.takenUpgrades["phoenix"] || 1) - 1;
 							this.stats.hp = this.stats.maxHp * 0.5;
 
 							// REVIVE EXPLOSION
 							this.particles.setPosition(player.x, player.y);
-							this.particles.explode(300); // Increased count for bigger explosion
+							this.particles.explode(300);
+
+							// Phoenix Emoji Effect
+							let phoenix = this.add.text(player.x, player.y, "🐦‍🔥", { fontSize: "40px" }).setOrigin(0.5).setDepth(200);
+							this.tweens.add({
+								targets: phoenix,
+								scale: 3,
+								alpha: 0,
+								y: player.y - 100,
+								duration: 1500,
+								onComplete: () => phoenix.destroy(),
+							});
 
 							// Boom damage
 							this.enemies.children.each((e) => {
@@ -1214,13 +1338,25 @@
 
 					// Update Stats Panel
 					this.statsDetails.innerHTML = `
-                    Might: ${(this.stats.damageMult * 100).toFixed(0)}%<br>
-                    Speed: ${(this.stats.speedMult * 100).toFixed(0)}%<br>
-                    Haste: ${(this.stats.fireRateMult * 100).toFixed(0)}%<br>
-                    Area: ${(this.stats.areaMult * 100).toFixed(0)}%<br>
-                    Crit: ${(this.stats.critChance * 100).toFixed(0)}%<br>
-                    Luck: ${((this.stats.luck - 1) * 100).toFixed(0)}%
-                `;
+			                 Might: ${(this.stats.damageMult * 100).toFixed(0)}%<br>
+			                 Speed: ${(this.stats.speedMult * 100).toFixed(0)}%<br>
+			                 Haste: ${(this.stats.fireRateMult * 100).toFixed(0)}%<br>
+			                 Area: ${(this.stats.areaMult * 100).toFixed(0)}%<br>
+			                 Crit: ${(this.stats.critChance * 100).toFixed(0)}%<br>
+			                 Luck: ${((this.stats.luck - 1) * 100).toFixed(0)}%
+			             `;
+
+					// Update Inventory
+					this.inventoryContainer.innerHTML = "";
+					for (const [id, count] of Object.entries(this.takenUpgrades)) {
+						if (count <= 0) continue;
+						// Find icon
+						const upg = UPGRADES.find((u) => u.id === id) || { icon: "?" };
+						const div = document.createElement("div");
+						div.className = "inv-item";
+						div.innerHTML = `${upg.icon} ${count > 1 ? `<span class="inv-count">x${count}</span>` : ""}`;
+						this.inventoryContainer.appendChild(div);
+					}
 				}
 
 				// --- UPGRADE SYSTEM ---
@@ -1231,7 +1367,7 @@
 
 					// Select random upgrades based on upgradeChoices stat
 					let choices = [];
-					let pool = [...UPGRADES]; // Copy
+					let pool = [...UPGRADES].filter((u) => !(u.oneTime && (this.takenUpgrades[u.id] || 0) > 0)); // Copy
 
 					// Use the new stat
 					const numOptions = this.stats.upgradeChoices || 3;
@@ -1255,12 +1391,12 @@
 						let typeLabel = opt.type.split("_")[0].toUpperCase();
 
 						el.innerHTML = `
-                        <div class="card-type">${typeLabel}</div>
-                        <div class="card-icon">${opt.icon}</div>
-                        <div class="card-title">${opt.name}</div>
-                        <div class="card-desc">${opt.desc}</div>
-                        <div class="card-key">[${index + 1}]</div>
-                    `;
+			                     <div class="card-type">${typeLabel}</div>
+			                     <div class="card-icon">${opt.icon}</div>
+			                     <div class="card-title">${opt.name}</div>
+			                     <div class="card-desc">${opt.desc}</div>
+			                     <div class="card-key">[${index + 1}]</div>
+			                 `;
 						el.onclick = () => this.applyUpgrade(opt);
 						container.appendChild(el);
 					});
@@ -1269,13 +1405,8 @@
 				}
 
 				applyUpgrade(opt) {
-					// If unique/one-time, remove from global UPGRADES list
-					if (opt.oneTime) {
-						const idx = UPGRADES.findIndex((u) => u.id === opt.id);
-						if (idx > -1) {
-							UPGRADES.splice(idx, 1);
-						}
-					}
+					// Update Inventory Count
+					this.takenUpgrades[opt.id] = (this.takenUpgrades[opt.id] || 0) + 1;
 
 					// Apply logic
 					switch (opt.type) {
@@ -1297,8 +1428,9 @@
 							if (!hasWep) {
 								let cd = 1000;
 								if (opt.weaponId === "shotgun") cd = 1200;
-								if (opt.weaponId === "laser") cd = 2000; // Explicit 2000ms cooldown for scanning
+								if (opt.weaponId === "laser") cd = 750; // Explicit 750ms cooldown for scanning
 								if (opt.weaponId === "fist") cd = 1500;
+								if (opt.weaponId === "grenade") cd = 2000;
 								this.weapons.push({ id: opt.weaponId, cooldown: cd, timer: 0 });
 							}
 							break;
