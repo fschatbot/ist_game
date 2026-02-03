@@ -75,6 +75,8 @@ class BootScene extends Phaser.Scene {
 	preload() {
 		// Load the asset provided by user. Note: atlasXML is used for XML format.
 		this.load.atlasXML("space", "assets/simpleSpace_sheet@2.png", "assets/simpleSpace_sheet@2.xml"); // Credits to Kenney.nl for assets
+		this.load.audio("click", "assets/click_sound.mp3");
+		this.load.audio("shoot", "assets/shoot_sound.mp3");
 	}
 
 	create() {
@@ -103,6 +105,10 @@ class GameScene extends Phaser.Scene {
 		// Generate background tile sprite using stars from atlas
 		this.createSpaceBackground();
 		this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, "space_bg").setOrigin(0, 0).setScrollFactor(0);
+
+		// Sounds
+		this.clickSound = this.sound.add("click");
+		this.shootSound = this.sound.add("shoot", { volume: 0.05 });
 
 		// Groups
 		this.bullets = this.physics.add.group({ maxSize: 300 });
@@ -226,12 +232,54 @@ class GameScene extends Phaser.Scene {
 		canvas.refresh();
 	}
 
+	playClick() {
+		if (!this.sound || !this.clickSound) return;
+
+		if (this.sound.context.state === "suspended") {
+			this.sound.context
+				.resume()
+				.then(() => {
+					this.clickSound.play();
+				})
+				.catch(() => {
+					// Resume failed
+				});
+		} else {
+			try {
+				this.clickSound.play();
+			} catch (e) {
+				// Ignore if sound blocked or not loaded
+			}
+		}
+	}
+
+	playShoot() {
+		this.shootSound.play();
+		// if (!this.sound || !this.shootSound) return;
+		// if (this.sound.context.state === "suspended") {
+		// 	this.sound.context
+		// 		.resume()
+		// 		.then(() => {
+		// 			this.shootSound.play();
+		// 		})
+		// 		.catch(() => {
+		// 			// Resume failed
+		// 		});
+		// } else {
+		// 	try {
+		// 	} catch (e) {
+		// 		// Ignore if sound blocked or not loaded
+		// 	}
+		// }
+	}
+
 	setupInputs() {
 		this.cursors = this.input.keyboard.createCursorKeys();
 		this.wasd = this.input.keyboard.addKeys("W,A,S,D");
 
 		// Pause Key
 		this.input.keyboard.on("keydown-ESC", () => {
+			this.playClick();
 			this.togglePause();
 		});
 
@@ -689,6 +737,7 @@ class GameScene extends Phaser.Scene {
 					if (count > 1) angle += (i - (count - 1) / 2) * 0.2;
 					this.physics.velocityFromRotation(angle, 400, b.body.velocity);
 					b.homingTarget = target; // For homing logic
+					this.playShoot();
 				}
 			}
 		}
@@ -706,6 +755,7 @@ class GameScene extends Phaser.Scene {
 				this.initBullet(b, 6); // Lower dmg
 				let angle = baseAngle + (i - (count - 1) / 2) * 0.15; // Tighter spread
 				this.physics.velocityFromRotation(angle, 450, b.body.velocity);
+				this.playShoot();
 			}
 		}
 	}
@@ -1061,6 +1111,7 @@ class GameScene extends Phaser.Scene {
 	}
 
 	applyUpgrade(opt) {
+		this.playClick();
 		// Update Inventory Count
 		this.takenUpgrades[opt.id] = (this.takenUpgrades[opt.id] || 0) + 1;
 
