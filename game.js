@@ -3,17 +3,19 @@ const GAME_WIDTH = window.innerWidth;
 const GAME_HEIGHT = window.innerHeight;
 
 const TYPES = {
-	PLAYER: "player",
-	ENEMY_BAT: "bat",
-	ENEMY_SKEL: "skeleton",
-	BULLET: "bullet",
-	GEM: "gem",
-	ORB: "orb",
-	LASER: "laser",
-	HELPER: "helper",
-	GRENADE: "grenade",
-	AOE: "aoe",
-	PARTICLE: "particle",
+	// Atlas Frame Names from simpleSpace_sheet@2.xml
+	PLAYER: "station_C.png",
+	ENEMY_BAT: "enemy_A.png", // Fast enemy
+	ENEMY_SKEL: "enemy_D.png", // Tougher enemy
+	ENEMY_BOSS: "ship_sidesC.png", // Boss
+	BULLET: "star_tiny.png",
+	GEM: "star_small.png",
+	ORB: "meteor_small.png",
+	LASER: "effect_purple.png",
+	HELPER: "station_A.png",
+	GRENADE: "meteor_squareSmall.png",
+	PARTICLE: "star_tiny.png",
+	AOE: "aoe_texture", // Procedural
 };
 
 const UPGRADES = [
@@ -70,93 +72,19 @@ class BootScene extends Phaser.Scene {
 		super("BootScene");
 	}
 
+	preload() {
+		// Load the asset provided by user. Note: atlasXML is used for XML format.
+		this.load.atlasXML("space", "assets/simpleSpace_sheet@2.png", "assets/simpleSpace_sheet@2.xml"); // Credits to Kenney.nl for assets
+	}
+
 	create() {
-		// Player
+		// Create procedural AOE texture since we don't have a perfect sprite for it
 		let g = this.make.graphics({ x: 0, y: 0, add: false });
-		g.fillStyle(0xffffff);
-		g.lineStyle(2, 0x000000);
-		g.fillCircle(16, 16, 14);
-		g.strokeCircle(16, 16, 14);
-		g.generateTexture(TYPES.PLAYER, 32, 32);
-
-		// Enemies
-		g.clear();
-		g.fillStyle(0xff4444);
-		g.fillTriangle(0, 0, 32, 0, 16, 32);
-		g.generateTexture(TYPES.ENEMY_BAT, 32, 32);
-		g.clear();
-		g.fillStyle(0xcccccc);
-		g.lineStyle(2, 0x555555);
-		g.fillRect(0, 0, 32, 32);
-		g.strokeRect(0, 0, 32, 32);
-		g.generateTexture(TYPES.ENEMY_SKEL, 32, 32);
-
-		// Projectiles
-		g.clear();
-		g.fillStyle(0xffff00);
-		g.fillCircle(6, 6, 6);
-		g.generateTexture(TYPES.BULLET, 12, 12);
-
-		// Orb (Planet)
-		g.clear();
-		g.fillStyle(0xff8800);
-		g.fillCircle(8, 8, 8);
-		g.generateTexture(TYPES.ORB, 16, 16);
-
-		// Helper (Drone)
-		g.clear();
-		g.fillStyle(0x00ff00);
-		g.fillRect(0, 0, 16, 16);
-		g.generateTexture(TYPES.HELPER, 16, 16);
-
-		// Laser
-		g.clear();
-		g.fillStyle(0xff0000);
-		g.fillRect(0, 0, 32, 4);
-		g.generateTexture(TYPES.LASER, 32, 4);
-
-		// Grenade
-		g.clear();
-		g.fillStyle(0x556b2f);
-		g.fillCircle(6, 6, 6);
-		g.lineStyle(1, 0x000000);
-		g.strokeCircle(6, 6, 6);
-		g.generateTexture(TYPES.GRENADE, 12, 12);
-
-		// Gem
-		g.clear();
-		g.fillStyle(0x4facfe);
-		g.fillPoints(
-			[
-				{ x: 8, y: 0 },
-				{ x: 16, y: 8 },
-				{ x: 8, y: 16 },
-				{ x: 0, y: 8 },
-			],
-			true,
-			true,
-		);
-		g.generateTexture(TYPES.GEM, 16, 16);
-
-		// Particle
-		g.clear();
-		g.fillStyle(0xffffff);
-		g.fillCircle(4, 4, 4);
-		g.generateTexture(TYPES.PARTICLE, 8, 8);
-
-		// AOE Circle (Garlic)
-		g.clear();
 		g.fillStyle(0xffffff, 0.2);
 		g.lineStyle(2, 0xffffff, 0.5);
 		g.fillCircle(64, 64, 60);
 		g.strokeCircle(64, 64, 60);
 		g.generateTexture(TYPES.AOE, 128, 128);
-
-		// Grid
-		g.clear();
-		g.lineStyle(2, 0x333333, 0.5);
-		g.strokeRect(0, 0, 128, 128);
-		g.generateTexture("grid", 128, 128);
 
 		this.scene.start("GameScene");
 	}
@@ -171,18 +99,23 @@ class GameScene extends Phaser.Scene {
 	create() {
 		// Physics & World
 		this.physics.world.setBounds(-10000, -10000, 20000, 20000);
-		this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, "grid").setOrigin(0, 0).setScrollFactor(0);
+
+		// Generate background tile sprite using stars from atlas
+		this.createSpaceBackground();
+		this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, "space_bg").setOrigin(0, 0).setScrollFactor(0);
 
 		// Groups
-		this.bullets = this.physics.add.group({ defaultKey: TYPES.BULLET, maxSize: 300 });
+		this.bullets = this.physics.add.group({ maxSize: 300 });
 		this.enemies = this.physics.add.group({ runChildUpdate: true });
 		this.gems = this.physics.add.group();
 		this.helpers = this.physics.add.group(); // Drones, Turrets
 		this.auras = this.add.group(); // Visual auras attached to player
 		this.floatingTexts = this.add.group(); // Damage numbers
 
-		// Player
-		this.player = this.physics.add.sprite(0, 0, TYPES.PLAYER).setDepth(100);
+		// Player - Using Sprite from Atlas
+		this.player = this.physics.add.sprite(0, 0, "space", TYPES.PLAYER).setDepth(100);
+		this.player.setScale(0.5); // Scale down assets
+		this.player.setCircle(45, 15, 15); // Adjust hitbox
 		this.player.setCollideWorldBounds(true);
 		this.cameras.main.startFollow(this.player);
 
@@ -190,9 +123,10 @@ class GameScene extends Phaser.Scene {
 		this.laserGraphics = this.add.graphics().setDepth(99);
 
 		// Particles
-		this.particles = this.add.particles(0, 0, TYPES.PARTICLE, {
+		this.particles = this.add.particles(0, 0, "space", {
+			frame: TYPES.PARTICLE,
 			speed: { min: 100, max: 400 },
-			scale: { start: 1, end: 0 },
+			scale: { start: 0.5, end: 0 },
 			blendMode: "ADD",
 			lifespan: 800,
 			emitting: false,
@@ -224,11 +158,9 @@ class GameScene extends Phaser.Scene {
 			thorns: 0,
 			revives: 0,
 			upgradeChoices: 3,
-			// Status Effects on hit
 			poison: false,
 			burn: false,
 			freeze: false,
-			// On Kill
 			healOnKill: 0,
 			explodeOnKill: false,
 			level: 1,
@@ -270,6 +202,28 @@ class GameScene extends Phaser.Scene {
 		this.spawnDelay = 1000;
 		this.waveCycle = 0;
 		this.isPaused = false;
+	}
+
+	createSpaceBackground() {
+		// Create a texture for background
+		const canvas = this.textures.createCanvas("space_bg", 512, 512);
+		const ctx = canvas.context;
+
+		// Fill black
+		ctx.fillStyle = "#050505";
+		ctx.fillRect(0, 0, 512, 512);
+
+		// Random white stars
+		ctx.fillStyle = "#ffffff";
+		for (let i = 0; i < 100; i++) {
+			const x = Math.random() * 512;
+			const y = Math.random() * 512;
+			const r = Math.random() * 1.5;
+			ctx.beginPath();
+			ctx.arc(x, y, r, 0, Math.PI * 2);
+			ctx.fill();
+		}
+		canvas.refresh();
 	}
 
 	setupInputs() {
@@ -366,6 +320,8 @@ class GameScene extends Phaser.Scene {
 		if (dx !== 0 || dy !== 0) {
 			const vec = new Phaser.Math.Vector2(dx, dy).normalize().scale(speed);
 			this.player.setVelocity(vec.x, vec.y);
+			// Rotate ship towards movement
+			this.player.setRotation(vec.angle() + Math.PI / 2);
 		}
 
 		// Loot Magnet
@@ -426,13 +382,26 @@ class GameScene extends Phaser.Scene {
 			// HP Scaling Formula from user
 			hp *= Math.pow(1.08, mins);
 
-			let enemy = this.enemies.create(spawnX, spawnY, type);
+			let enemy = this.spawnEnemyEntity(spawnX, spawnY, type);
 			enemy.hp = hp;
 			enemy.maxHp = hp;
 			enemy.speed = speed;
 			enemy.status = { poison: 0, burn: 0, freeze: 0, stun: 0 };
-			enemy.setTint(0xffffff);
 		}
+	}
+
+	spawnEnemyEntity(x, y, type) {
+		// Use Atlas texture 'space', frame 'type'
+		let enemy = this.enemies.create(x, y, "space", type);
+		if (type === TYPES.ENEMY_BAT) {
+			enemy.setTint(0xff4444); // Light blue tint for bats
+		} else if (type === TYPES.ENEMY_SKEL) {
+			enemy.setTint(0xcccccc);
+		}
+		enemy.setScale(0.4);
+		// Adjust physics body to be smaller than sprite
+		enemy.setCircle(36, 12, 12);
+		return enemy;
 	}
 
 	spawnWave(mins) {
@@ -447,7 +416,7 @@ class GameScene extends Phaser.Scene {
 			const spawnX = this.player.x + Math.cos(angle) * radius;
 			const spawnY = this.player.y + Math.sin(angle) * radius;
 
-			let enemy = this.enemies.create(spawnX, spawnY, TYPES.ENEMY_BAT);
+			let enemy = this.spawnEnemyEntity(spawnX, spawnY, TYPES.ENEMY_BAT);
 			enemy.hp = 10 * Math.pow(1.08, mins);
 			enemy.maxHp = enemy.hp;
 			enemy.speed = 100; // Fast rush
@@ -460,13 +429,13 @@ class GameScene extends Phaser.Scene {
 		const spawnX = this.player.x + Math.cos(angle) * baseRadius;
 		const spawnY = this.player.y + Math.sin(angle) * baseRadius;
 
-		let boss = this.enemies.create(spawnX, spawnY, TYPES.ENEMY_SKEL);
-		let bossHp = 300 * Math.pow(1.15, mins);
+		let boss = this.spawnEnemyEntity(spawnX, spawnY, TYPES.ENEMY_BOSS); // Use Boss Sprite
+		let bossHp = 200 * Math.pow(1.2, mins);
 		boss.hp = bossHp;
 		boss.maxHp = bossHp;
 		boss.speed = 40; // Slow but tanky
-		boss.setScale(2.5);
-		boss.isElite = true; // Mark as elite
+		boss.setScale(0.8); // Bigger than others
+		boss.isElite = true;
 		boss.status = { poison: 0, burn: 0, freeze: 0, stun: 0 };
 		boss.setTint(0xff0000); // Red tint
 	}
@@ -487,9 +456,15 @@ class GameScene extends Phaser.Scene {
 					enemy.status.freeze -= delta;
 					enemy.setTint(0x8888ff);
 				} else {
-					if (enemy.scaleX > 2)
-						enemy.setTint(0xff0000); // Boss
-					else enemy.clearTint();
+					if (enemy.isElite)
+						enemy.setTint(0xff0000); // Boss tint
+					else if (enemy.tintTopLeft === 0xffaa00) {
+						// Wave tint, keep it
+					} else if (enemy.textureFrame === TYPES.ENEMY_BAT) {
+						enemy.setTint(0xff4444); // Normal bat tint
+					} else {
+						enemy.setTint(0xcccccc); // Normal skel tint
+					}
 				}
 
 				if (enemy.hp <= 0) {
@@ -510,7 +485,11 @@ class GameScene extends Phaser.Scene {
 					if (this.activeAuras.slow && dist < 200 * this.stats.areaMult) {
 						moveSpeed *= 0.7;
 					}
-					if (enemy.body) this.physics.moveToObject(enemy, this.player, moveSpeed);
+					if (enemy.body) {
+						this.physics.moveToObject(enemy, this.player, moveSpeed);
+						// Point towards player
+						enemy.setRotation(enemy.body.velocity.angle() + Math.PI / 2);
+					}
 				} else {
 					if (enemy.body) enemy.setVelocity(0, 0);
 					if (enemy.status.stun > 0) enemy.status.stun -= delta;
@@ -638,7 +617,9 @@ class GameScene extends Phaser.Scene {
 			if (!this.orbs) {
 				this.orbs = [];
 				for (let i = 0; i < this.activeAuras.orbit; i++) {
-					let o = this.physics.add.sprite(0, 0, TYPES.ORB).setDepth(90);
+					let o = this.physics.add.sprite(0, 0, "space", TYPES.ORB).setDepth(90);
+					o.setScale(0.4);
+					o.setTint(0x00ffff);
 					o.orbitOffset = ((Math.PI * 2) / this.activeAuras.orbit) * i;
 					this.orbs.push(o);
 					// Ensure orbits don't block bullets (though they are separate groups, explicit is good)
@@ -699,7 +680,9 @@ class GameScene extends Phaser.Scene {
 		if (target) {
 			const count = this.stats.projectileCount;
 			for (let i = 0; i < count; i++) {
-				let b = this.bullets.get(originX, originY);
+				let b = this.bullets.create(originX, originY, "space", TYPES.BULLET);
+				b.setScale(0.4);
+				b.setTint(0xffff00);
 				if (b) {
 					this.initBullet(b, dmg * scale);
 					let angle = Phaser.Math.Angle.Between(originX, originY, target.x, target.y);
@@ -717,7 +700,8 @@ class GameScene extends Phaser.Scene {
 		let baseAngle = target ? Phaser.Math.Angle.Between(this.player.x, this.player.y, target.x, target.y) : Math.random() * Math.PI * 2;
 
 		for (let i = 0; i < count; i++) {
-			let b = this.bullets.get(this.player.x, this.player.y);
+			let b = this.bullets.create(this.player.x, this.player.y, "space", TYPES.BULLET);
+			b.setScale(0.3);
 			if (b) {
 				this.initBullet(b, 6); // Lower dmg
 				let angle = baseAngle + (i - (count - 1) / 2) * 0.15; // Tighter spread
@@ -758,11 +742,13 @@ class GameScene extends Phaser.Scene {
 		let tx = this.player.x + Math.cos(a) * 200;
 		let ty = this.player.y + Math.sin(a) * 200;
 
-		let g = this.add.sprite(this.player.x, this.player.y, TYPES.GRENADE);
+		let g = this.add.sprite(this.player.x, this.player.y, "space", TYPES.GRENADE);
+		g.setScale(0.5);
 		this.tweens.add({
 			targets: g,
 			x: tx,
 			y: ty,
+			rotation: 3.14,
 			duration: 600,
 			ease: "Power2",
 			onComplete: () => {
@@ -795,14 +781,8 @@ class GameScene extends Phaser.Scene {
 
 		// Lifetime based on range/duration
 		this.time.delayedCall(1500 * this.stats.durationMult, () => {
-			if (b.active) this.retireBullet(b);
+			if (b.active) b.destroy();
 		});
-	}
-
-	retireBullet(b) {
-		b.setActive(false).setVisible(false);
-		b.body.enable = false;
-		b.setPosition(-100, -100);
 	}
 
 	// --- COLLISION LOGIC ---
@@ -824,7 +804,7 @@ class GameScene extends Phaser.Scene {
 				bullet.body.velocity.negate(); // Bounce back
 			}
 		} else {
-			this.retireBullet(bullet);
+			bullet.destroy();
 		}
 	}
 
@@ -887,7 +867,7 @@ class GameScene extends Phaser.Scene {
 			// Delay before damage
 			this.time.delayedCall(75, () => {
 				// Reduced radius (37.5 is 75% of 50) and reduced damage (17)
-				this.triggerExplosion(enemy.x, enemy.y, 17 * this.stats.damageMult, 30);
+				this.triggerExplosion(enemy.x, enemy.y, 17 * this.stats.damageMult, 37.5);
 			});
 		}
 
@@ -896,22 +876,24 @@ class GameScene extends Phaser.Scene {
 		if (enemy.isElite) {
 			// Drop 2 red orbs
 			for (let i = 0; i < 2; i++) {
-				let gem = this.gems.create(enemy.x + i * 10, enemy.y, TYPES.GEM);
+				let gem = this.gems.create(enemy.x + i * 10, enemy.y, "space", TYPES.GEM);
 				gem.setTint(0xff0000);
 				gem.xpValue = 50 * (this.stats.xpMult || 1);
-				gem.setScale(1.5);
+				gem.setScale(0.6);
 			}
 		} else {
 			// Standard drop
-			let gem = this.gems.create(enemy.x, enemy.y, TYPES.GEM);
+			let gem = this.gems.create(enemy.x, enemy.y, "space", TYPES.GEM);
 			let isLucky = Math.random() < 0.05 * this.stats.luck;
 
 			if (isLucky) {
 				gem.setTint(0xff0000); // Red Gem
 				gem.xpValue = 50 * (this.stats.xpMult || 1);
-				gem.setScale(1.5);
+				gem.setScale(0.6);
 			} else {
+				gem.setTint(0x4facfe); // Blue Gem
 				gem.xpValue = 10 * (this.stats.xpMult || 1);
+				gem.setScale(0.4);
 			}
 		}
 
@@ -1012,13 +994,13 @@ class GameScene extends Phaser.Scene {
 
 		// Update Stats Panel
 		this.statsDetails.innerHTML = `
-			                 Might: ${(this.stats.damageMult * 100).toFixed(0)}%<br>
-			                 Speed: ${(this.stats.speedMult * 100).toFixed(0)}%<br>
-			                 Haste: ${(this.stats.fireRateMult * 100).toFixed(0)}%<br>
-			                 Area: ${(this.stats.areaMult * 100).toFixed(0)}%<br>
-			                 Crit: ${(this.stats.critChance * 100).toFixed(0)}%<br>
-			                 Luck: ${((this.stats.luck - 1) * 100).toFixed(0)}%
-			             `;
+            Might: ${(this.stats.damageMult * 100).toFixed(0)}%<br>
+            Speed: ${(this.stats.speedMult * 100).toFixed(0)}%<br>
+            Haste: ${(this.stats.fireRateMult * 100).toFixed(0)}%<br>
+            Area: ${(this.stats.areaMult * 100).toFixed(0)}%<br>
+            Crit: ${(this.stats.critChance * 100).toFixed(0)}%<br>
+            Luck: ${((this.stats.luck - 1) * 100).toFixed(0)}%
+        `;
 
 		// Update Inventory
 		this.inventoryContainer.innerHTML = "";
@@ -1065,12 +1047,12 @@ class GameScene extends Phaser.Scene {
 			let typeLabel = opt.type.split("_")[0].toUpperCase();
 
 			el.innerHTML = `
-			                     <div class="card-type">${typeLabel}</div>
-			                     <div class="card-icon">${opt.icon}</div>
-			                     <div class="card-title">${opt.name}</div>
-			                     <div class="card-desc">${opt.desc}</div>
-			                     <div class="card-key">[${index + 1}]</div>
-			                 `;
+                <div class="card-type">${typeLabel}</div>
+                <div class="card-icon">${opt.icon}</div>
+                <div class="card-title">${opt.name}</div>
+                <div class="card-desc">${opt.desc}</div>
+                <div class="card-key">[${index + 1}]</div>
+            `;
 			el.onclick = () => this.applyUpgrade(opt);
 			container.appendChild(el);
 		});
@@ -1120,7 +1102,8 @@ class GameScene extends Phaser.Scene {
 				break;
 			case "helper":
 				// Create visual helper
-				let h = this.helpers.create(this.player.x, this.player.y, TYPES.HELPER);
+				let h = this.helpers.create(this.player.x, this.player.y, "space", TYPES.HELPER);
+				h.setScale(0.3);
 				h.type = opt.helperId;
 				if (opt.helperId === "turret") {
 					h.body.immovable = true; // Turret stays
