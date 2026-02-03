@@ -20,9 +20,9 @@ const TYPES = {
 
 const UPGRADES = [
 	// Stats
-	{ id: "might", name: "Spinach", desc: "Increases Damage by 20%", icon: "💪", type: "stat", stat: "damageMult", val: 0.2 },
+	{ id: "might", name: "FirePower", desc: "Increases Damage by 20%", icon: "💪", type: "stat", stat: "damageMult", val: 0.2 },
 	{ id: "haste", name: "Coffee", desc: "Increases Fire Rate by 15%", icon: "☕", type: "stat", stat: "fireRateMult", val: 0.15 },
-	{ id: "speed", name: "Sneakers", desc: "Increases Move Speed by 15%", icon: "👟", type: "stat", stat: "speedMult", val: 0.15 },
+	{ id: "speed", name: "Boosters", desc: "Increases Move Speed by 15%", icon: "👟", type: "stat", stat: "speedMult", val: 0.15 },
 	{ id: "magnet", name: "Magnet", desc: "Increases Pickup Range by 30%", icon: "🧲", type: "stat", stat: "pickupMult", val: 0.3 },
 	{ id: "vitality", name: "Heart", desc: "Heal 50% HP & +20% Max HP", icon: "❤️", type: "heal" },
 	{ id: "area", name: "Candelabra", desc: "Increases Area of Effect by 25%", icon: "🕯️", type: "stat", stat: "areaMult", val: 0.25 },
@@ -30,8 +30,8 @@ const UPGRADES = [
 	{ id: "pierce", name: "Spearhead", desc: "Projectiles pierce +1 extra enemy", icon: "🗡️", type: "stat", stat: "pierce", val: 1 },
 	{ id: "crit", name: "Lucky Coin", desc: "+15% Critical Hit Chance", icon: "🪙", type: "stat", stat: "critChance", val: 0.15 },
 	{ id: "critdmg", name: "Diamond Edge", desc: "+50% Critical Damage", icon: "💎", type: "stat", stat: "critDamageMult", val: 0.5 },
-	{ id: "armor", name: "Turtle Shell", desc: "Reduce incoming damage by 15%", icon: "🐢", type: "defense", stat: "damageReduction", val: 0.15 },
-	{ id: "regen", name: "Green Tea", desc: "Regenerate 1 HP per second", icon: "🍵", type: "stat", stat: "hpRegen", val: 1 },
+	{ id: "armor", name: "Steel Shell", desc: "Reduce incoming damage by 15%", icon: "🐢", type: "defense", stat: "damageReduction", val: 0.15 },
+	{ id: "regen", name: "Mechanic", desc: "Regenerate 1 HP per second", icon: "🧑‍🔧", type: "stat", stat: "hpRegen", val: 1 },
 	{ id: "luck", name: "Four Leaf", desc: "+20% Luck (better drops)", icon: "🍀", type: "stat", stat: "luck", val: 0.2 },
 	{ id: "telescope", name: "Stargazer", desc: "Projectiles gain +50% range", icon: "🔭", type: "stat", stat: "rangeMult", val: 0.5 },
 	{ id: "xpboost", name: "Study Book", desc: "+25% XP gain", icon: "📖", type: "economy", stat: "xpMult", val: 0.25 },
@@ -41,16 +41,16 @@ const UPGRADES = [
 	{ id: "multi", name: "Twin Wand", desc: "Add +1 Projectile to attacks", icon: "✨", type: "weapon_mod", stat: "projectileCount", val: 1 },
 	{ id: "triple", name: "Trident", desc: "Add +2 Projectiles to attacks", icon: "🔱", type: "weapon_mod", stat: "projectileCount", val: 2 },
 	{ id: "shotgun", name: "Scattergun", desc: "Fires a cone of 5 weak bullets", icon: "🔫", type: "weapon_add", weaponId: "shotgun", oneTime: true },
-	{ id: "laser", name: "Red Pointer", desc: "Lock-on Laser beam (Continuous)", icon: "🔴", type: "weapon_add", weaponId: "laser", oneTime: true },
-	{ id: "fist", name: "Iron Knuckle", desc: "Melee punch nearby enemies", icon: "👊", type: "weapon_add", weaponId: "fist", oneTime: true },
-	{ id: "grenade", name: "Frag Grenade", desc: "Throws explosives periodically", icon: "💣", type: "weapon_add", weaponId: "grenade", oneTime: true },
-	{ id: "orbit", name: "Planets", desc: "Spawn 2 orbiting fireballs", icon: "🪐", type: "aura_add", auraId: "orbit", val: 2 },
-	{ id: "garlic", name: "Garlic Aura", desc: "Damages all enemies in radius", icon: "🧄", type: "aura_add", auraId: "garlic", oneTime: true },
+	{ id: "laser", name: "Laser Cannon", desc: "Lock-on Laser beam (Continuous)", icon: "🔴", type: "weapon_add", weaponId: "laser", oneTime: true },
+	{ id: "fist", name: "Force Field", desc: "Damages nearby enemies", icon: "👊", type: "weapon_add", weaponId: "fist", oneTime: true },
+	{ id: "grenade", name: "Space Grenade", desc: "Throws explosives periodically", icon: "💣", type: "weapon_add", weaponId: "grenade", oneTime: true },
+	{ id: "orbit", name: "Plasma", desc: "Spawn 2 orbiting Plasma balls", icon: "🪐", type: "aura_add", auraId: "orbit", val: 2 },
+	{ id: "garlic", name: "EMP Aura", desc: "Damages all enemies in radius", icon: "🪫", type: "aura_add", auraId: "garlic", oneTime: true },
 
 	// Projectile Mods
 	{ id: "homing", name: "Love Letter", desc: "Projectiles gain homing", icon: "💌", type: "proj_mod", stat: "homing", val: 0.4, oneTime: true },
 	{ id: "bounce", name: "Pinball", desc: "Projectiles bounce +2 times", icon: "🎳", type: "proj_mod", stat: "bounce", val: 2, oneTime: true },
-	{ id: "poison", name: "Venom Vial", desc: "Projectiles apply Poison", icon: "☠️", type: "status", effect: "poison", oneTime: true },
+	{ id: "poison", name: "Venom Vial", desc: "Projectiles now carry bio weapons", icon: "☠️", type: "status", effect: "poison", oneTime: true },
 	{ id: "fire", name: "Matchbox", desc: "Projectiles set enemies on fire", icon: "🔥", type: "status", effect: "burn", oneTime: true },
 	{ id: "freeze", name: "Snowflake", desc: "Chance to freeze enemies", icon: "❄️", type: "status", effect: "freeze", oneTime: true },
 
