@@ -196,7 +196,6 @@ class GameScene extends Phaser.Scene {
 
 		this.currentOptions = []; // Stores current upgrade cards
 
-		this.setupInputs();
 		this.setupCollisions();
 		this.setupUIReferences();
 
@@ -207,7 +206,29 @@ class GameScene extends Phaser.Scene {
 		this.spawnTimer = 0;
 		this.spawnDelay = 1000;
 		this.waveCycle = 0;
-		this.isPaused = false;
+
+		this.isPaused = true;
+		this.physics.pause();
+
+		// Setup Start Button
+		const startModal = document.getElementById("start-modal");
+		startModal.style.display = "flex";
+
+		const startBtn = document.getElementById("start-btn");
+		if (startBtn) {
+			// Remove old listener to avoid dupes if hot-reloading
+			const newBtn = startBtn.cloneNode(true);
+			startBtn.parentNode.replaceChild(newBtn, startBtn);
+
+			newBtn.addEventListener("click", () => {
+				this.playClick();
+				startModal.style.display = "none";
+				this.isPaused = false;
+				this.physics.resume();
+
+				this.setupInputs();
+			});
+		}
 	}
 
 	createSpaceBackground() {
@@ -279,7 +300,6 @@ class GameScene extends Phaser.Scene {
 
 		// Pause Key
 		this.input.keyboard.on("keydown-ESC", () => {
-			this.playClick();
 			this.togglePause();
 		});
 
@@ -298,9 +318,11 @@ class GameScene extends Phaser.Scene {
 	togglePause() {
 		// Don't toggle normal pause if upgrade menu is open
 		if (document.getElementById("upgrade-modal").style.display === "flex") return;
+		this.playClick();
 
 		this.isPaused = !this.isPaused;
 		const modal = document.getElementById("pause-modal");
+		console.log(modal);
 		if (this.isPaused) {
 			this.physics.pause();
 			modal.style.display = "flex";
