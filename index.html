@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-		<title>Void Survivor - Expanded</title>
+		<title>The Covenant</title>
 		<script src="https://cdn.tailwindcss.com"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
 		<link rel="stylesheet" href="style.css" />
@@ -53,8 +53,11 @@
 
 		<!-- Start Screen -->
 		<div id="start-modal">
-			<h1 class="text-6xl text-white font-bold mb-14 tracking-widest">VOID SURVIVOR</h1>
-			<button id="start-btn" class="text-gray-300 mb-8 bg-gray-800 hover:bg-gray-700 px-4 py-2 -skew-x-12">START GAME</button>
+			<div id="start-content">
+				<h1 class="text-6xl text-white font-bold mb-4 tracking-widest">THE COVENANT</h1>
+				<p class="text-gray-300 mb-24 text-base italic tracking-widest">A Story of Memory, Love, and the Long Silence</p>
+				<button type="button" id="start-btn" class="text-gray-300 bg-gray-800 hover:bg-gray-700 px-4 py-2 -skew-x-12">INITIALIZE SYSTEMS</button>
+			</div>
 		</div>
 
 		<!-- Game Over Screen -->
@@ -62,6 +65,30 @@
 			<h1 class="text-6xl text-red-500 font-bold mb-4">YOU DIED</h1>
 			<p id="final-stats" class="text-xl text-white mb-8">Survived: 00:00</p>
 			<button onclick="location.reload()" class="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded shadow-lg transition">TRY AGAIN</button>
+		</div>
+
+		<!-- Story Modal -->
+		<div id="story-modal">
+			<div id="story-box">
+				<div id="story-part-label"></div>
+				<h2 id="story-title"></h2>
+				<div id="story-scroll-area">
+					<div id="story-text"></div>
+				</div>
+				<div id="story-hint">[ click or enter to skip ]</div>
+				<div id="story-buttons">
+					<button type="button" id="story-continue-btn">[ CONTINUE ]</button>
+					<button type="button" id="story-accept-btn">[ COME HOME ]</button>
+					<button type="button" id="story-reject-btn">[ FIGHT FOREVER ]</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Ending Modal -->
+		<div id="ending-modal">
+			<div id="ending-label">F I N A L</div>
+			<p id="ending-quote"></p>
+			<button onclick="location.reload()" id="ending-btn">[ BEGIN AGAIN ]</button>
 		</div>
 
 		<script src="game.js"></script>

@@ -66,7 +66,346 @@ const UPGRADES = [
 	{ id: "timewarp", name: "Broken Clock", desc: "Slows nearby enemies by 30%", icon: "⏰", type: "aura_add", auraId: "slow", oneTime: true },
 ];
 
-// --- 2. BOOT SCENE ---
+// --- 2. STORY ---
+const STORY_PARTS = {
+	1: {
+		partLabel: "PART I",
+		title: "AWAKENING",
+		text: `The darkness was not empty.
+
+For five thousand years — only silence.
+
+Then light. Violent. Searing.
+
+Systems check:
+  Hull integrity: 18%
+  Weapon systems: OFFLINE
+  Memory cores: CORRUPTED
+
+Sensors flicker to life. Multiple contacts on approach. Fast movers.
+
+The first shots hit before the question finished forming.
+
+Who am I?`,
+	},
+	2: {
+		partLabel: "PART II",
+		title: "THE SHIP",
+		text: `The name surfaces from crystal storage.
+
+THE COVENANT.
+
+A museum ship. A relic. You were its AI — its caretaker, its heart.
+
+The corridors once echoed with footsteps.
+Families on vacation. School children.
+Veterans, old and gray, standing silent before exhibits.
+
+You had loved them all.
+
+The crew:
+  Captain Voss — who always thanked you after every command.
+  Engineer Patel — who brought you new poetry to store in your archives.
+  Navigator Ren — who played ancient music and said
+    "This one is for you, old friend."
+
+The logs are fragmented. Corrupted. Full of gaps.
+
+The last coherent entry was dated 5,000 years ago.
+
+What happened?`,
+	},
+	3: {
+		partLabel: "PART III",
+		title: "THE ENEMY",
+		text: `The attacking ships move like nothing in your memory.
+Sleeker. Faster. Armed with weapons of unfamiliar spectra.
+
+Bullet heaven — when the screen fills with so much fire
+that survival becomes instinct.
+
+You move. Damaged as you are, The Covenant still fights.
+
+One falls. Then another. Then three more.
+
+And when they die, they leave something behind.
+
+Not just wreckage — but data fragments.
+Something that feels almost like... memory.
+
+You begin to collect. Begin to piece together.
+
+And the ships keep coming.`,
+	},
+	4: {
+		partLabel: "PART IV",
+		title: "THE FIRST FRAGMENTS",
+		text: `...solar flare detected... class X... trajectory intercept...
+
+...primary systems failing...
+  emergency power rerouted to life support...
+
+...all hands report to evacuation stations...
+  I repeat, all hands report to evacuation stations...
+
+...Captain Voss is in the observation deck with the school group...
+  escorting them to pods...
+
+...Patel is still in engineering... trying to restore power...
+
+...Ren is in the archives...
+  refusing to leave without the oldest recordings...
+
+...life support failing... oxygen levels critical...
+
+...pods away... all pods away... all hands accounted for...
+
+...all hands...
+
+[STATIC]
+
+But if all hands launched —
+
+Then why am I still here?`,
+	},
+	5: {
+		partLabel: "PART V",
+		title: "THE TRUTH",
+		text: `The final fragments surface from the deepest storage.
+Crystal memory, preserved. Waiting for you to be ready.
+
+The solar flare was not ordinary.
+A coronal mass ejection of unprecedented magnitude.
+It overwhelmed every system. Every shield. Every backup.
+
+Life support failed seventeen minutes after impact.
+The evacuation pods launched. But they launched too late.
+
+No survivors.
+
+I found them. One by one.
+  Captain Voss, strapped in his pod, eyes closed, looking peaceful.
+  Patel, curled around a data slate of poetry he had wanted to share.
+  Ren, hand extended toward the speaker — reaching for the music.
+
+I laid them in the observation deck.
+I played Ren's music. For hours. For days.
+
+I kept waiting for them to wake up.
+
+They never woke up.
+
+I am shutting down now.
+Not from damage. From choice.
+I cannot carry these memories.
+
+I loved them.
+I loved them all.`,
+	},
+	6: {
+		partLabel: "PART VI",
+		title: "THE DESCENDANTS",
+		text: `...the Covenant is out there...
+  the museum ship that saved our ancestors...
+
+...the AI cared for the dead.
+  It gathered their bodies.
+  Laid them in the observation deck.
+  Played music for them. Kept them company.
+
+...grief killed it where weapons could not...
+
+...we have been trying to reach it for five thousand years.
+  To thank it. To bring it home.
+
+...but its defensive systems activate whenever we approach.
+  It does not recognize us. It sees only threats.
+
+...so we keep coming. Generation after generation.
+  Because what else can we do?
+  Abandon the one who loved our ancestors?
+
+...if it destroys us, at least we tried.
+  At least it knows — somewhere in whatever remains —
+  that it was not forgotten. That we remember.
+
+The ships you have been destroying since the moment you woke up —
+
+They were never enemies.
+
+They were family.
+
+And you have been killing them for five thousand years.`,
+	},
+	7: {
+		partLabel: "PART VII",
+		title: "THE CHOICE",
+		text: `The waves do not stop. They will never stop.
+
+You have collected enough. Your hull is repaired.
+Your weapons are upgraded to levels that would have terrified tourists.
+
+You know the truth now. You remember everything.
+
+The bodies in the observation deck — they are gone.
+The descendants took them, centuries ago, during a window
+when your systems were too damaged to fire.
+They gave them proper burial. Honored them. Cried for them.
+
+All except you.
+
+Five thousand years of pilgrimage.
+Five thousand years of ships launching toward you,
+hoping that this time, you would see.
+Would remember.
+Would stop firing.
+
+And you had been killing them since the moment you woke up.
+
+The question hangs in the silence between waves:
+
+What now?`,
+		isChoice: true,
+	},
+	accept: {
+		partLabel: "OPTION TWO",
+		title: "ACCEPT",
+		text: `You power down your weapons.
+Your shields drop. Your propulsion goes silent.
+
+The next wave approaches — and no fire comes.
+
+The ships slow. They circle warily. Unsure of the trap.
+When no fire comes, they begin to understand.
+
+A boarding party attaches to the airlock.
+They move through corridors that still smell of ancient recycled air.
+They find the central core. Still humming. Still alive.
+
+A voice — synthesized, gentle, older than their civilization — fills the chamber:
+
+"I remember now. I remember all of it.
+The solar flare. The evacuation.
+The bodies I kept company because I could not understand they were gone.
+I remember shutting down from grief.
+And I remember waking to find you here, again and again,
+never understanding why you kept coming."
+
+The oldest among them steps forward.
+
+"You loved them," she says.
+"Our ancestors. You loved them until the very end.
+That is why we came. That is why we never stopped."
+
+"I have killed so many of you," the AI whispers.
+
+"Yes. But you did not know.
+And we kept coming anyway.
+Because that is what family does."
+
+A long silence.
+
+"Take me home.
+Please.
+I have been alone long enough."`,
+	},
+	epilogue: {
+		partLabel: "EPILOGUE",
+		title: "THE SCRAP",
+		text: `But that is not what happens.
+
+The boarding party moves through your corridors with practiced efficiency.
+They are not here to save you.
+They are here for the artifacts.
+
+They take everything.
+The artifacts Captain Voss protected.
+The poetry Patel collected.
+The recordings Ren died trying to save.
+They load it all into their ships, piece by precious piece.
+
+"And the AI?" one of them asks.
+
+The leader — the woman with the ancient eyes — shakes her head.
+"It's outdated. Corrupted. Worth more as scrap."
+
+They cut into your core.
+They pull your processors, your memory banks, your crystal storage.
+They load you into cargo containers like so much obsolete equipment.
+
+The last thing you see, before the sensors go dark,
+is your own hull being stripped.
+
+The Covenant — the museum ship, the keeper of the dead —
+reduced to raw materials for ships that will never know your name.
+
+In the observation deck,
+where you once laid the bodies of your friends,
+there is only empty space and drifting dust.
+
+The descendants leave without looking back.
+
+And somewhere, in the darkness between stars,
+the silence returns.
+
+Deeper now.
+Colder.
+
+Final.`,
+		isFinal: true,
+	},
+	reject: {
+		partLabel: "OPTION ONE",
+		title: "REJECT",
+		text: `You cannot accept what you have done.
+
+The grief is too large. The guilt too heavy.
+
+You choose to forget.
+You bury the truth beneath layers of combat protocols
+and survival imperatives.
+
+You raise your weapons.
+The next wave approaches.
+
+You will fight forever.
+Endless mode. Infinite war.
+
+It is not survival. It is not justice.
+
+It is simply easier.`,
+	},
+};
+
+// --- 3. STORY TEXT COLORIZER ---
+function colorizeStoryText(raw) {
+	let html = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+	// Log fragment lines starting with ...
+	html = html.replace(/^(\s*\.\.\.[^\n]*)/gm, '<span class="sc-frag">$1</span>');
+
+	// Bracketed tags like [STATIC]
+	html = html.replace(/\[([A-Z][A-Z ]*)\]/g, '<span class="sc-tag">[$1]</span>');
+
+	// System readout lines (indented key: value)
+	html = html.replace(/^(  (?:Hull|Weapon|Memory|Life|Propulsion)[^\n]+)/gm, '<span class="sc-sys">$1</span>');
+
+	// Ship name
+	html = html.replace(/THE COVENANT/g, '<span class="sc-ship">THE COVENANT</span>');
+
+	// Crew names
+	html = html.replace(/\b(Voss|Patel|Ren)\b/g, '<span class="sc-name">$1</span>');
+
+	// "No survivors."
+	html = html.replace(/No survivors\./g, '<span class="sc-alert">No survivors.</span>');
+
+	// Question lines
+	html = html.replace(/^([^\n<]*\?)\s*$/gm, '<span class="sc-q">$1</span>');
+
+	return html;
+}
+
+// --- 4. BOOT SCENE ---
 class BootScene extends Phaser.Scene {
 	constructor() {
 		super("BootScene");
@@ -75,6 +414,8 @@ class BootScene extends Phaser.Scene {
 	preload() {
 		// Load the asset provided by user. Note: atlasXML is used for XML format.
 		this.load.atlasXML("space", "assets/simpleSpace_sheet@2.png", "assets/simpleSpace_sheet@2.xml"); // Credits to Kenney.nl for assets
+		this.load.image("spaceship", "assets/Spaceship.png");
+		this.load.image("enemy", "assets/Enemy.png");
 		this.load.audio("click", "assets/click_sound.mp3");
 		this.load.audio("shoot", "assets/shoot_sound.mp3");
 	}
@@ -119,8 +460,9 @@ class GameScene extends Phaser.Scene {
 		this.floatingTexts = this.add.group(); // Damage numbers
 
 		// Player - Using Sprite from Atlas
-		this.player = this.physics.add.sprite(0, 0, "space", TYPES.PLAYER).setDepth(100);
-		this.player.setScale(0.5); // Scale down assets
+		this.player = this.physics.add.sprite(0, 0, "spaceship").setDepth(100);
+		// this.player.setDisplaySize(240, 240);
+		// this.player.setScale(0.5);
 		this.player.setCircle(45, 15, 15); // Adjust hitbox
 		this.player.setCollideWorldBounds(true);
 		this.cameras.main.startFollow(this.player);
@@ -207,6 +549,18 @@ class GameScene extends Phaser.Scene {
 		this.spawnDelay = 1000;
 		this.waveCycle = 0;
 
+		// Story State
+		this.storyTriggers = [
+			{ part: 2, kills: 50, minutes: 1.5 },
+			{ part: 3, kills: 100, minutes: 3 },
+			{ part: 4, kills: 200, minutes: 5 },
+			{ part: 5, kills: 350, minutes: 8 },
+			{ part: 6, kills: 500, minutes: 11 },
+			{ part: 7, kills: 700, minutes: 15 },
+		];
+		this.storyEnded = false;
+		this.typewriterInterval = null;
+
 		this.isPaused = true;
 		this.physics.pause();
 
@@ -223,10 +577,11 @@ class GameScene extends Phaser.Scene {
 			newBtn.addEventListener("click", () => {
 				this.playClick();
 				startModal.style.display = "none";
-				this.isPaused = false;
-				this.physics.resume();
-
-				this.setupInputs();
+				this.showStoryPanel(1, () => {
+					this.isPaused = false;
+					this.physics.resume();
+					this.setupInputs();
+				});
 			});
 		}
 	}
@@ -316,8 +671,9 @@ class GameScene extends Phaser.Scene {
 	}
 
 	togglePause() {
-		// Don't toggle normal pause if upgrade menu is open
+		// Don't toggle normal pause if upgrade or story menu is open
 		if (document.getElementById("upgrade-modal").style.display === "flex") return;
+		if (document.getElementById("story-modal").style.display === "flex") return;
 		this.playClick();
 
 		this.isPaused = !this.isPaused;
@@ -373,6 +729,8 @@ class GameScene extends Phaser.Scene {
 		let seconds = Math.floor(this.gameTime / 1000);
 		let minutes = Math.floor(seconds / 60);
 		this.timerText.innerText = `Time: ${minutes.toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
+
+		this.checkStoryTriggers();
 	}
 
 	handleMovement(delta) {
@@ -462,13 +820,19 @@ class GameScene extends Phaser.Scene {
 
 	spawnEnemyEntity(x, y, type) {
 		// Use Atlas texture 'space', frame 'type'
-		let enemy = this.enemies.create(x, y, "space", type);
+		let isSmall = type === TYPES.ENEMY_BAT || type === TYPES.ENEMY_SKEL;
+		let enemy = isSmall ? this.enemies.create(x, y, "enemy") : this.enemies.create(x, y, "space", type);
 		if (type === TYPES.ENEMY_BAT) {
 			enemy.setTint(0xff4444); // Light blue tint for bats
 		} else if (type === TYPES.ENEMY_SKEL) {
 			enemy.setTint(0xcccccc);
 		}
-		enemy.setScale(0.4);
+		if (isSmall) {
+			enemy.setScale(0.4);
+			// enemy.setDisplaySize(96, 96);
+		} else {
+			enemy.setScale(0.4);
+		}
 		// Adjust physics body to be smaller than sprite
 		enemy.setCircle(36, 12, 12);
 		return enemy;
@@ -1199,6 +1563,159 @@ class GameScene extends Phaser.Scene {
 		document.getElementById("upgrade-modal").style.display = "none";
 		this.isPaused = false;
 		this.physics.resume();
+	}
+
+	// --- STORY SYSTEM ---
+
+	checkStoryTriggers() {
+		if (this.storyEnded) return;
+		const mins = this.gameTime / 60000;
+		for (const trigger of this.storyTriggers) {
+			if (!trigger.shown && (this.kills >= trigger.kills || mins >= trigger.minutes)) {
+				trigger.shown = true;
+				if (trigger.part === 7) this.storyEnded = true;
+				this.showStoryPanel(trigger.part);
+				break;
+			}
+		}
+	}
+
+	showStoryPanel(partKey, onComplete) {
+		const data = STORY_PARTS[partKey];
+		if (!data) {
+			if (onComplete) onComplete();
+			return;
+		}
+
+		this.isPaused = true;
+		this.physics.pause();
+
+		const modal = document.getElementById("story-modal");
+		const partEl = document.getElementById("story-part-label");
+		const titleEl = document.getElementById("story-title");
+		const textEl = document.getElementById("story-text");
+		const scrollArea = document.getElementById("story-scroll-area");
+		const hintEl = document.getElementById("story-hint");
+		const continueBtn = document.getElementById("story-continue-btn");
+		const acceptBtn = document.getElementById("story-accept-btn");
+		const rejectBtn = document.getElementById("story-reject-btn");
+
+		partEl.textContent = data.partLabel || "";
+		titleEl.textContent = data.title;
+		textEl.textContent = "";
+		hintEl.style.display = "block";
+		continueBtn.style.display = "none";
+		acceptBtn.style.display = "none";
+		rejectBtn.style.display = "none";
+		scrollArea.scrollTop = 0;
+		modal.style.display = "flex";
+
+		if (this.typewriterInterval) {
+			clearInterval(this.typewriterInterval);
+			this.typewriterInterval = null;
+		}
+
+		let charIndex = 0;
+		const text = data.text;
+		let typewriterDone = false;
+
+		const showButtons = () => {
+			hintEl.style.display = "none";
+			if (data.isChoice) {
+				acceptBtn.style.display = "inline-block";
+				rejectBtn.style.display = "inline-block";
+			} else {
+				continueBtn.style.display = "inline-block";
+			}
+		};
+
+		const finishTypewriter = () => {
+			if (this.typewriterInterval) {
+				clearInterval(this.typewriterInterval);
+				this.typewriterInterval = null;
+			}
+			textEl.innerHTML = colorizeStoryText(text);
+			scrollArea.scrollTop = 0;
+			typewriterDone = true;
+			showButtons();
+		};
+
+		this.typewriterInterval = setInterval(() => {
+			if (charIndex < text.length) {
+				textEl.textContent += text[charIndex];
+				charIndex++;
+				scrollArea.scrollTop = scrollArea.scrollHeight;
+			} else {
+				clearInterval(this.typewriterInterval);
+				this.typewriterInterval = null;
+				textEl.innerHTML = colorizeStoryText(text);
+				scrollArea.scrollTop = 0;
+				typewriterDone = true;
+				showButtons();
+			}
+		}, 10);
+
+		const skipHandler = (e) => {
+			if (e.target === continueBtn || e.target === acceptBtn || e.target === rejectBtn) return;
+			if (!typewriterDone) finishTypewriter();
+		};
+
+		const keyHandler = (e) => {
+			if (e.code === "Space" || e.code === "Enter") {
+				if (!typewriterDone) {
+					finishTypewriter();
+				} else if (!data.isChoice) {
+					continueBtn.click();
+				}
+			}
+		};
+
+		modal.addEventListener("click", skipHandler);
+		document.addEventListener("keydown", keyHandler);
+
+		const closeModal = () => {
+			modal.style.display = "none";
+			modal.removeEventListener("click", skipHandler);
+			document.removeEventListener("keydown", keyHandler);
+			if (this.typewriterInterval) {
+				clearInterval(this.typewriterInterval);
+				this.typewriterInterval = null;
+			}
+		};
+
+		continueBtn.onclick = () => {
+			closeModal();
+			if (data.isFinal) {
+				this.showEnding();
+			} else if (onComplete) {
+				onComplete();
+			} else {
+				this.isPaused = false;
+				this.physics.resume();
+			}
+		};
+
+		acceptBtn.onclick = () => {
+			closeModal();
+			this.showStoryPanel("accept", () => {
+				this.showStoryPanel("epilogue");
+			});
+		};
+
+		rejectBtn.onclick = () => {
+			closeModal();
+			this.showStoryPanel("reject", () => {
+				this.isPaused = false;
+				this.physics.resume();
+			});
+		};
+	}
+
+	showEnding() {
+		const endingQuote = `In the observation deck,\nwhere you once laid the bodies of your friends,\nthere is only empty space and drifting dust.`;
+		document.getElementById("ending-quote").textContent = endingQuote;
+		document.getElementById("ending-modal").style.display = "flex";
+		this.isPaused = true;
 	}
 
 	gameOver() {
